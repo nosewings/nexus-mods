@@ -1,6 +1,7 @@
 module NexusMods (
   User (..),
   validate,
+  getTrackedMods,
   runNexus,
 ) where
 
@@ -25,14 +26,27 @@ data User = User
 
 deriveFromJSON (defaultOptions {fieldLabelModifier = camelTo2 '_'}) ''User
 
-type NexusModsAPI = "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
+data ModRef = ModRef
+  { modId :: Int,
+    domainName :: String
+  }
+  deriving (Eq, Ord, Read, Show)
+
+deriveFromJSON (defaultOptions {fieldLabelModifier = camelTo2 '_'}) ''ModRef
+
+type NexusModsAPI =
+  "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
+    :<|> "v1" :> "user" :> "tracked_mods.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [ModRef]
 
 api :: Proxy NexusModsAPI
 api = Proxy
 
 -- | Validate a user's API key and return their info.
 validate :: String -> ClientM User
-validate = client api
+
+-- | Get a user's list of tracked mods.
+getTrackedMods :: String -> ClientM [ModRef]
+validate :<|> getTrackedMods = client api
 
 -- | Run a Nexus Mods API computation.  This is a convenience function
 -- that uses HTTPS and the default Nexus Mods URL.
