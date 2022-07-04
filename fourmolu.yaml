@@ -1,0 +1,6 @@
+indentation: 2
+comma-style: trailing
+indent-wheres: false
+record-brace-space: true
+respectful: false
+haddock-style: single-line
