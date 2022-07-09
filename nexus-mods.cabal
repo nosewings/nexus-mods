@@ -6,6 +6,7 @@ maintainer:         coltharp@pdx.edu
 
 library
     exposed-modules:    NexusMods
+    other-modules:      NexusMods.TH
     build-depends:      base
                       , aeson
                       , http-client

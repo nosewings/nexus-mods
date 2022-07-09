@@ -7,13 +7,13 @@ module NexusMods (
   runNexus,
 ) where
 
-import Data.Aeson
 import Data.Aeson.TH
 import Data.Data
 import Data.Functor
 import Data.SOP.NS
 import Network.HTTP.Client hiding (Proxy)
 import Network.HTTP.Client.TLS
+import NexusMods.TH
 import Servant.API
 import Servant.Client
 
@@ -28,7 +28,7 @@ data User = User
   }
   deriving (Eq, Ord, Read, Show)
 
-deriveFromJSON (defaultOptions {fieldLabelModifier = camelTo2 '_'}) ''User
+deriveFromJSON deriveJSONOptions ''User
 
 data ModRef = ModRef
   { modId :: Int,
@@ -36,14 +36,14 @@ data ModRef = ModRef
   }
   deriving (Eq, Ord, Read, Show)
 
-deriveFromJSON (defaultOptions {fieldLabelModifier = camelTo2 '_'}) ''ModRef
+deriveFromJSON deriveJSONOptions ''ModRef
 
 newtype Message = Message
   { message :: String
   }
   deriving (Eq, Ord, Read, Show)
 
-deriveFromJSON (defaultOptions {fieldLabelModifier = camelTo2 '_'}) ''Message
+deriveFromJSON deriveJSONOptions ''Message
 
 type NexusModsAPI =
   "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
