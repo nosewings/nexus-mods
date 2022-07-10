@@ -16,13 +16,16 @@ library
                       , servant-client
                       , sop-core
                       , text
+                      , time
     hs-source-dirs:     src
     default-language:   Haskell2010
     default-extensions: BlockArguments
                       , DataKinds
+                      , DuplicateRecordFields
                       , GADTs
                       , ImportQualifiedPost
                       , LambdaCase
                       , MultiWayIf
+                      , OverloadedStrings
                       , TemplateHaskell
                       , TypeOperators

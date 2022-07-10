@@ -2,6 +2,8 @@ module NexusMods (
   Changelogs,
   User (..),
   ModRef (..),
+  EndorsementStatus (..),
+  Endorsement (..),
   Colour (..),
   ColourScheme (..),
   getChangelogs,
@@ -21,6 +23,7 @@ import Data.Functor
 import Data.Map
 import Data.SOP.NS
 import Data.Text qualified as Text
+import Data.Time
 import Data.Word
 import Network.HTTP.Client hiding (Proxy)
 import Network.HTTP.Client.TLS
@@ -55,6 +58,28 @@ data ModRef = ModRef
   deriving (Eq, Ord, Read, Show)
 
 deriveFromJSON deriveJSONOptions ''ModRef
+
+-- TODO Is there anything else?
+data EndorsementStatus = Endorsed | Abstained
+  deriving (Eq, Ord, Enum, Bounded, Read, Show)
+
+instance FromJSON EndorsementStatus where
+  parseJSON = withText "EndorsementStatus" \case
+    "Endorsed" -> return Endorsed
+    "Abstained" -> return Abstained
+    t -> fail ("expected either \"Endorsed\" or \"Abstained\"; got " ++ Text.unpack t)
+
+data Endorsement = Endorsement
+  { modId :: Int,
+    domainName :: String,
+    date :: UTCTime,
+    -- TODO The objects from the server also have a "version" field,
+    -- but it seems to always be null.  Is it?
+    status :: EndorsementStatus
+  }
+  deriving (Eq, Ord, Read, Show)
+
+deriveFromJSON deriveJSONOptions ''Endorsement
 
 newtype Message = Message
   { message :: String
@@ -117,6 +142,7 @@ type NexusModsAPI =
             :> QueryParam' '[Required] "mod_id" Int
             :> UVerb DELETE '[JSON] [WithStatus 200 Message, WithStatus 404 Message]
          )
+    :<|> "v1" :> "user" :> "endorsements.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Endorsement]
     :<|> "v1" :> "colourschemes" :> Header' '[Required] "apikey" String :> Get '[JSON] [ColourScheme]
 
 api :: Proxy NexusModsAPI
@@ -153,11 +179,14 @@ untrackMod a b c =
     Z _ -> True
     _ -> False
 
+-- | Get a list of the user's endorsements.
+getEndorsements :: String -> ClientM [Endorsement]
+
 -- | Get a list of all colour schemes.
 getColourSchemes :: String -> ClientM [ColourScheme]
 
 -- | Create the API functions.
-getChangelogs :<|> validate :<|> getTrackedMods :<|> trackMod' :<|> untrackMod' :<|> getColourSchemes = client api
+getChangelogs :<|> validate :<|> getTrackedMods :<|> trackMod' :<|> untrackMod' :<|> getEndorsements :<|> getColourSchemes = client api
 
 -- | Run a Nexus Mods API computation.  This is a convenience function
 -- that uses HTTPS and the default Nexus Mods URL.
