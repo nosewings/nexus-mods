@@ -1,8 +1,10 @@
 module NexusMods (
+  Changelogs,
   User (..),
   ModRef (..),
   Colour (..),
   ColourScheme (..),
+  getChangelogs,
   validate,
   getTrackedMods,
   trackMod,
@@ -16,6 +18,7 @@ import Data.Aeson.TH
 import Data.Char
 import Data.Data
 import Data.Functor
+import Data.Map
 import Data.SOP.NS
 import Data.Text qualified as Text
 import Data.Word
@@ -28,6 +31,9 @@ import Text.ParserCombinators.ReadP
 
 impossible :: a
 impossible = error "an impossible situation has occurred"
+
+-- | A list of mod changelogs.
+type Changelogs = Map String [String]
 
 -- | Details about a Nexus Mods user.
 data User = User
@@ -96,7 +102,8 @@ data ColourScheme = ColourScheme
 deriveFromJSON deriveJSONOptions ''ColourScheme
 
 type NexusModsAPI =
-  "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
+  "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "changelogs.json" :> Header' '[Required] "apikey" String :> Get '[JSON] Changelogs
+    :<|> "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
     :<|> "v1" :> "user" :> "tracked_mods.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [ModRef]
     :<|> ( "v1" :> "user" :> "tracked_mods.json"
             :> Header' '[Required] "apikey" String
@@ -114,6 +121,9 @@ type NexusModsAPI =
 
 api :: Proxy NexusModsAPI
 api = Proxy
+
+-- | Get a mod's list of changelogs.
+getChangelogs :: String -> Int -> String -> ClientM Changelogs
 
 -- | Validate a user's API key and return their info.
 validate :: String -> ClientM User
@@ -143,8 +153,11 @@ untrackMod a b c =
     Z _ -> True
     _ -> False
 
+-- | Get a list of all colour schemes.
+getColourSchemes :: String -> ClientM [ColourScheme]
+
 -- | Create the API functions.
-validate :<|> getTrackedMods :<|> trackMod' :<|> untrackMod' :<|> getColourSchemes = client api
+getChangelogs :<|> validate :<|> getTrackedMods :<|> trackMod' :<|> untrackMod' :<|> getColourSchemes = client api
 
 -- | Run a Nexus Mods API computation.  This is a convenience function
 -- that uses HTTPS and the default Nexus Mods URL.

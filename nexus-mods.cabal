@@ -9,6 +9,7 @@ library
     other-modules:      NexusMods.TH
     build-depends:      base
                       , aeson
+                      , containers
                       , http-client
                       , http-client-tls
                       , servant
