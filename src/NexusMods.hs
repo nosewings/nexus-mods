@@ -1,21 +1,33 @@
 module NexusMods (
   User (..),
+  ModRef (..),
+  Colour (..),
+  ColourScheme (..),
   validate,
   getTrackedMods,
   trackMod,
   untrackMod,
+  getColourSchemes,
   runNexus,
 ) where
 
+import Data.Aeson
 import Data.Aeson.TH
+import Data.Char
 import Data.Data
 import Data.Functor
 import Data.SOP.NS
+import Data.Text qualified as Text
+import Data.Word
 import Network.HTTP.Client hiding (Proxy)
 import Network.HTTP.Client.TLS
 import NexusMods.TH
 import Servant.API
 import Servant.Client
+import Text.ParserCombinators.ReadP
+
+impossible :: a
+impossible = error "an impossible situation has occurred"
 
 -- | Details about a Nexus Mods user.
 data User = User
@@ -45,6 +57,44 @@ newtype Message = Message
 
 deriveFromJSON deriveJSONOptions ''Message
 
+data Colour = Colour
+  { red :: Word8,
+    blue :: Word8,
+    green :: Word8
+  }
+  deriving (Eq, Ord, Read, Show)
+
+instance FromJSON Colour where
+  parseJSON = withText "Colour" \t ->
+    case readP_to_S colour (Text.unpack t) of
+      [] -> fail ("expected an RGB color string; got " ++ Text.unpack t)
+      [(colour, "")] -> return colour
+      _ -> impossible
+   where
+    colour = char '#' *> (Colour <$> hexWord8 <*> hexWord8 <*> hexWord8) <* eof
+    hexWord8 = combine <$> hexDigit <*> hexDigit
+     where
+      combine hi lo = 16 * hi + lo
+    hexDigit =
+      satisfy isHexDigit <&> \c ->
+        fromIntegral
+          if
+              | isDigit c -> ord c - ord '0'
+              | isAsciiUpper c -> ord c - ord 'A'
+              | isAsciiLower c -> ord c - ord 'a'
+              | otherwise -> impossible
+
+data ColourScheme = ColourScheme
+  { id :: Int,
+    name :: String,
+    primaryColour :: Colour,
+    secondaryColour :: Colour,
+    darkerColour :: Colour
+  }
+  deriving (Eq, Ord, Read, Show)
+
+deriveFromJSON deriveJSONOptions ''ColourScheme
+
 type NexusModsAPI =
   "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
     :<|> "v1" :> "user" :> "tracked_mods.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [ModRef]
@@ -60,6 +110,7 @@ type NexusModsAPI =
             :> QueryParam' '[Required] "mod_id" Int
             :> UVerb DELETE '[JSON] [WithStatus 200 Message, WithStatus 404 Message]
          )
+    :<|> "v1" :> "colourschemes" :> Header' '[Required] "apikey" String :> Get '[JSON] [ColourScheme]
 
 api :: Proxy NexusModsAPI
 api = Proxy
@@ -93,7 +144,7 @@ untrackMod a b c =
     _ -> False
 
 -- | Create the API functions.
-validate :<|> getTrackedMods :<|> trackMod' :<|> untrackMod' = client api
+validate :<|> getTrackedMods :<|> trackMod' :<|> untrackMod' :<|> getColourSchemes = client api
 
 -- | Run a Nexus Mods API computation.  This is a convenience function
 -- that uses HTTPS and the default Nexus Mods URL.
