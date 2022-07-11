@@ -1,5 +1,7 @@
 module NexusMods (
   Changelogs,
+  Category (..),
+  Game (..),
   User (..),
   ModRef (..),
   EndorsementStatus (..),
@@ -7,6 +9,8 @@ module NexusMods (
   Colour (..),
   ColourScheme (..),
   getChangelogs,
+  getGames,
+  getGame,
   validate,
   getTrackedMods,
   trackMod,
@@ -16,11 +20,14 @@ module NexusMods (
 ) where
 
 import Data.Aeson
+import Data.Aeson.Internal (JSONPathElement (..))
 import Data.Aeson.TH
 import Data.Char
 import Data.Data
+import Data.Foldable
 import Data.Functor
-import Data.Map
+import Data.Map (Map)
+import Data.Maybe
 import Data.SOP.NS
 import Data.Text qualified as Text
 import Data.Time
@@ -37,6 +44,92 @@ impossible = error "an impossible situation has occurred"
 
 -- | A list of mod changelogs.
 type Changelogs = Map String [String]
+
+data Category' = Category'
+  { categoryId :: Int,
+    name :: String,
+    parentCategory :: Maybe Int
+  }
+  deriving (Eq, Ord, Read, Show)
+
+instance FromJSON Category' where
+  -- NOTE The @Category'@ type is internal; it exists only for the
+  -- purposes of converting @[Category']@ into @[Category]@.
+  -- Therefore, we use the name @"Category"@ here.
+  parseJSON = withObject "Category" \v -> do
+    categoryId <- v .: "category_id"
+    name <- v .: "name"
+    parentCategory <-
+      v .: "parent_category" >>= \case
+        Bool False -> return Nothing
+        x -> Just <$> parseJSON x <?> Key "name"
+    return (Category' categoryId name parentCategory)
+
+data Category = Category
+  { categoryId :: Int,
+    name :: String,
+    parentCategory :: Maybe Category
+  }
+  deriving (Eq, Ord, Read, Show)
+
+-- | Stitch a list of @Category'@ together to form a list of
+-- @Category@.  Each @parentCategory@ becomes a reference to some
+-- other category in the returned list.
+stitchCategories :: [Category'] -> [Category]
+stitchCategories cs = result
+ where
+  result =
+    map
+      ( \c ->
+          Category
+            { categoryId = categoryId (c :: Category'),
+              name = name (c :: Category'),
+              -- TODO What if the parent category isn't present?
+              -- Instead of using `fromJust`, think about how to deal
+              -- with that case.
+              parentCategory =
+                parentCategory (c :: Category') <&> \id ->
+                  fromJust (find (\c' -> categoryId (c' :: Category) == id) result)
+            }
+      )
+      cs
+
+data Game = Game
+  { id :: Int,
+    name :: String,
+    forumUrl :: String,
+    nexusmodsUrl :: String,
+    -- TODO Is this closed?  Should it be an ADT?
+    genre :: String,
+    fileCount :: Int,
+    downloads :: Int,
+    domainName :: String,
+    approvedDate :: Int,
+    fileViews :: Int,
+    authors :: Int,
+    fileEndorsements :: Int,
+    mods :: Int,
+    categories :: [Category]
+  }
+  deriving (Eq, Ord, Read, Show)
+
+instance FromJSON Game where
+  parseJSON = withObject "Game" \v ->
+    Game
+      <$> (v .: "id")
+      <*> (v .: "name")
+      <*> (v .: "forum_url")
+      <*> (v .: "nexusmods_url")
+      <*> (v .: "genre")
+      <*> (v .: "file_count")
+      <*> (v .: "downloads")
+      <*> (v .: "domain_name")
+      <*> (v .: "approved_date")
+      <*> (v .: "file_views")
+      <*> (v .: "authors")
+      <*> (v .: "file_endorsements")
+      <*> (v .: "mods")
+      <*> (v .: "categories" <&> stitchCategories)
 
 -- | Details about a Nexus Mods user.
 data User = User
@@ -128,6 +221,8 @@ deriveFromJSON deriveJSONOptions ''ColourScheme
 
 type NexusModsAPI =
   "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "changelogs.json" :> Header' '[Required] "apikey" String :> Get '[JSON] Changelogs
+    :<|> "v1" :> "games.json" :> Header' '[Required] "apikey" String :> Header "include_unapproved" Bool :> Get '[JSON] [Game]
+    :<|> "v1" :> "games" :> Header' '[Required] "apikey" String :> Capture "game_domain_name" String :> Get '[JSON] Game
     :<|> "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
     :<|> "v1" :> "user" :> "tracked_mods.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [ModRef]
     :<|> ( "v1" :> "user" :> "tracked_mods.json"
@@ -150,6 +245,19 @@ api = Proxy
 
 -- | Get a mod's list of changelogs.
 getChangelogs :: String -> Int -> String -> ClientM Changelogs
+
+-- | Get all games.
+getGames :: String -> Maybe Bool -> ClientM [Game]
+
+-- | Internal version of @getGame@.  This is necessary because the API
+-- path is @/v1/games/{game_domain_name}.json@, but Servant does not
+-- (as far as I know) give us the ability to modify a captured path
+-- component.
+getGame' :: String -> String -> ClientM Game
+
+-- | Get a specific game.
+getGame :: String -> String -> ClientM Game
+getGame key gameDomainName = getGame' key (gameDomainName ++ ".json")
 
 -- | Validate a user's API key and return their info.
 validate :: String -> ClientM User
@@ -186,7 +294,7 @@ getEndorsements :: String -> ClientM [Endorsement]
 getColourSchemes :: String -> ClientM [ColourScheme]
 
 -- | Create the API functions.
-getChangelogs :<|> validate :<|> getTrackedMods :<|> trackMod' :<|> untrackMod' :<|> getEndorsements :<|> getColourSchemes = client api
+getChangelogs :<|> getGames :<|> getGame' :<|> validate :<|> getTrackedMods :<|> trackMod' :<|> untrackMod' :<|> getEndorsements :<|> getColourSchemes = client api
 
 -- | Run a Nexus Mods API computation.  This is a convenience function
 -- that uses HTTPS and the default Nexus Mods URL.
