@@ -1,4 +1,6 @@
 module NexusMods (
+  Period (..),
+  ModUpdate (..),
   Changelogs,
   Category (..),
   Game (..),
@@ -8,6 +10,7 @@ module NexusMods (
   Endorsement (..),
   Colour (..),
   ColourScheme (..),
+  getUpdates,
   getChangelogs,
   getGames,
   getGame,
@@ -31,6 +34,7 @@ import Data.Maybe
 import Data.SOP.NS
 import Data.Text qualified as Text
 import Data.Time
+import Data.Time.Clock.POSIX (POSIXTime)
 import Data.Word
 import Network.HTTP.Client hiding (Proxy)
 import Network.HTTP.Client.TLS
@@ -41,6 +45,23 @@ import Text.ParserCombinators.ReadP
 
 impossible :: a
 impossible = error "an impossible situation has occurred"
+
+data Period = Day | Week | Month
+  deriving (Eq, Ord, Enum, Bounded, Read, Show)
+
+instance ToHttpApiData Period where
+  toQueryParam Day = "1d"
+  toQueryParam Week = "1w"
+  toQueryParam Month = "1m"
+
+data ModUpdate = ModUpdate
+  { modId :: Int,
+    latestFileUpdate :: POSIXTime,
+    latestModActivity :: POSIXTime
+  }
+  deriving (Eq, Ord, Read, Show)
+
+deriveFromJSON deriveJSONOptions ''ModUpdate
 
 -- | A list of mod changelogs.
 type Changelogs = Map String [String]
@@ -220,7 +241,8 @@ data ColourScheme = ColourScheme
 deriveFromJSON deriveJSONOptions ''ColourScheme
 
 type NexusModsAPI =
-  "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "changelogs.json" :> Header' '[Required] "apikey" String :> Get '[JSON] Changelogs
+  "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "updated.json" :> Header' '[Required] "apikey" String :> QueryParam' '[Required] "period" Period :> Get '[JSON] [ModUpdate]
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "changelogs.json" :> Header' '[Required] "apikey" String :> Get '[JSON] Changelogs
     :<|> "v1" :> "games.json" :> Header' '[Required] "apikey" String :> Header "include_unapproved" Bool :> Get '[JSON] [Game]
     :<|> "v1" :> "games" :> Header' '[Required] "apikey" String :> Capture "game_domain_name" String :> Get '[JSON] Game
     :<|> "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
@@ -242,6 +264,9 @@ type NexusModsAPI =
 
 api :: Proxy NexusModsAPI
 api = Proxy
+
+-- | Get a list of mod updates within a given time period.
+getUpdates :: String -> String -> Period -> ClientM [ModUpdate]
 
 -- | Get a mod's list of changelogs.
 getChangelogs :: String -> Int -> String -> ClientM Changelogs
@@ -294,7 +319,7 @@ getEndorsements :: String -> ClientM [Endorsement]
 getColourSchemes :: String -> ClientM [ColourScheme]
 
 -- | Create the API functions.
-getChangelogs :<|> getGames :<|> getGame' :<|> validate :<|> getTrackedMods :<|> trackMod' :<|> untrackMod' :<|> getEndorsements :<|> getColourSchemes = client api
+getUpdates :<|> getChangelogs :<|> getGames :<|> getGame' :<|> validate :<|> getTrackedMods :<|> trackMod' :<|> untrackMod' :<|> getEndorsements :<|> getColourSchemes = client api
 
 -- | Run a Nexus Mods API computation.  This is a convenience function
 -- that uses HTTPS and the default Nexus Mods URL.
