@@ -2,6 +2,11 @@ module NexusMods (
   Period (..),
   ModUpdate (..),
   Changelogs,
+  PublishedModInfo (..),
+  ModStatus (..),
+  ModUser (..),
+  ModEndorsement (..),
+  Mod (..),
   Category (..),
   Game (..),
   User (..),
@@ -12,6 +17,10 @@ module NexusMods (
   ColourScheme (..),
   getUpdates,
   getChangelogs,
+  getLatestAdded,
+  getLatestUpdated,
+  getTrending,
+  getMod,
   getGames,
   getGame,
   validate,
@@ -25,6 +34,7 @@ module NexusMods (
 import Data.Aeson
 import Data.Aeson.Internal (JSONPathElement (..))
 import Data.Aeson.TH
+import Data.Aeson.Types
 import Data.Char
 import Data.Data
 import Data.Foldable
@@ -32,6 +42,7 @@ import Data.Functor
 import Data.Map (Map)
 import Data.Maybe
 import Data.SOP.NS
+import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time
 import Data.Time.Clock.POSIX (POSIXTime)
@@ -65,6 +76,107 @@ deriveFromJSON deriveJSONOptions ''ModUpdate
 
 -- | A list of mod changelogs.
 type Changelogs = Map String [String]
+
+data PublishedModInfo = PublishedModInfo
+  { name :: String,
+    summary :: String,
+    description :: String,
+    pictureUrl :: String,
+    modDownloads :: Int,
+    modUniqueDownloads :: Int
+  }
+  deriving (Eq, Ord, Read, Show)
+
+deriveFromJSON deriveJSONOptions ''PublishedModInfo
+
+data ModStatus
+  = NotPublished
+  | Published PublishedModInfo
+  | Hidden
+  deriving (Eq, Ord, Read, Show)
+
+data ModUser = ModUser
+  { memberId :: Int,
+    memberGroupId :: Int,
+    name :: String
+  }
+  deriving (Eq, Ord, Read, Show)
+
+deriveFromJSON deriveJSONOptions ''ModUser
+
+-- TODO Is there anything else?
+data EndorsementStatus = Endorsed | Abstained
+  deriving (Eq, Ord, Enum, Bounded, Read, Show)
+
+instance FromJSON EndorsementStatus where
+  parseJSON = withText "EndorsementStatus" \case
+    "Endorsed" -> return Endorsed
+    "Abstained" -> return Abstained
+    t -> fail ("expected either \"Endorsed\" or \"Abstained\"; got " ++ Text.unpack t)
+
+data ModEndorsement = ModEndorsement
+  { endorseStatus :: EndorsementStatus,
+    timestamp :: POSIXTime
+    -- TODO The objects from the server also have a "version" field,
+    -- but it seems to always be null.  Is it?
+  }
+  deriving (Eq, Ord, Read, Show)
+
+deriveFromJSON deriveJSONOptions ''ModEndorsement
+
+data Mod = Mod
+  { status :: ModStatus,
+    uid :: Int,
+    modId :: Int,
+    gameId :: Int,
+    allowRating :: Bool,
+    domainName :: String,
+    categoryId :: Int,
+    version :: String,
+    endorsementCount :: Int,
+    -- NOTE The following two fields also have corresponding
+    -- "timestamp" fields; these express the exact same information,
+    -- but as POSIX timestamps.  We ignore them.
+    createdTime :: UTCTime,
+    updatedTime :: UTCTime,
+    author :: String,
+    uploadedBy :: String,
+    uploadedUsersProfileUrl :: String,
+    containsAdultContent :: Bool,
+    available :: Bool,
+    user :: ModUser,
+    endorsement :: Maybe ModEndorsement
+  }
+  deriving (Eq, Ord, Read, Show)
+
+instance FromJSON Mod where
+  parseJSON = withObject "Mod" \v -> do
+    status <-
+      (v .: "status" :: Parser Text) >>= \case
+        "not_published" -> return NotPublished
+        "hidden" -> return Hidden
+        -- If status is "published", then `v` should have all the
+        -- PublishedModInfo fields.
+        "published" -> Published <$> parseJSON (Object v)
+        t -> fail ("expected one of \"not_published\", \"published\", or \"hidden\"; got " ++ Text.unpack t)
+    Mod status
+      <$> (v .: "uid")
+      <*> (v .: "mod_id")
+      <*> (v .: "game_id")
+      <*> (v .: "allow_rating")
+      <*> (v .: "domain_name")
+      <*> (v .: "category_id")
+      <*> (v .: "version")
+      <*> (v .: "endorsement_count")
+      <*> (v .: "created_time")
+      <*> (v .: "updated_time")
+      <*> (v .: "author")
+      <*> (v .: "uploaded_by")
+      <*> (v .: "uploaded_users_profile_url")
+      <*> (v .: "contains_adult_content")
+      <*> (v .: "available")
+      <*> (v .: "user")
+      <*> (v .: "endorsement")
 
 data Category' = Category'
   { categoryId :: Int,
@@ -173,16 +285,6 @@ data ModRef = ModRef
 
 deriveFromJSON deriveJSONOptions ''ModRef
 
--- TODO Is there anything else?
-data EndorsementStatus = Endorsed | Abstained
-  deriving (Eq, Ord, Enum, Bounded, Read, Show)
-
-instance FromJSON EndorsementStatus where
-  parseJSON = withText "EndorsementStatus" \case
-    "Endorsed" -> return Endorsed
-    "Abstained" -> return Abstained
-    t -> fail ("expected either \"Endorsed\" or \"Abstained\"; got " ++ Text.unpack t)
-
 data Endorsement = Endorsement
   { modId :: Int,
     domainName :: String,
@@ -243,6 +345,10 @@ deriveFromJSON deriveJSONOptions ''ColourScheme
 type NexusModsAPI =
   "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "updated.json" :> Header' '[Required] "apikey" String :> QueryParam' '[Required] "period" Period :> Get '[JSON] [ModUpdate]
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "changelogs.json" :> Header' '[Required] "apikey" String :> Get '[JSON] Changelogs
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "latest_added.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Mod]
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "latest_updated.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Mod]
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "trending.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Mod]
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" String :> Header' '[Required] "apikey" String :> Get '[JSON] Mod
     :<|> "v1" :> "games.json" :> Header' '[Required] "apikey" String :> Header "include_unapproved" Bool :> Get '[JSON] [Game]
     :<|> "v1" :> "games" :> Header' '[Required] "apikey" String :> Capture "game_domain_name" String :> Get '[JSON] Game
     :<|> "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
@@ -270,6 +376,22 @@ getUpdates :: String -> String -> Period -> ClientM [ModUpdate]
 
 -- | Get a mod's list of changelogs.
 getChangelogs :: String -> Int -> String -> ClientM Changelogs
+
+-- | Get the ten most recently added mods for a given game.
+getLatestAdded :: String -> String -> ClientM [Mod]
+
+-- | Get the ten most recently updated mods for a given game.
+getLatestUpdated :: String -> String -> ClientM [Mod]
+
+-- | Get ten trending mods for a given game.
+getTrending :: String -> String -> ClientM [Mod]
+
+-- | Internal version of @getMod@.
+getMod' :: String -> String -> String -> ClientM Mod
+
+-- | Get a mod by game and ID.
+getMod :: String -> Int -> String -> ClientM Mod
+getMod gameDomainName id = getMod' gameDomainName (show id ++ ".json")
 
 -- | Get all games.
 getGames :: String -> Maybe Bool -> ClientM [Game]
