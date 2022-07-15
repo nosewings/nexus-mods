@@ -441,7 +441,20 @@ getEndorsements :: String -> ClientM [Endorsement]
 getColourSchemes :: String -> ClientM [ColourScheme]
 
 -- | Create the API functions.
-getUpdates :<|> getChangelogs :<|> getGames :<|> getGame' :<|> validate :<|> getTrackedMods :<|> trackMod' :<|> untrackMod' :<|> getEndorsements :<|> getColourSchemes = client api
+getUpdates
+  :<|> getChangelogs
+  :<|> getLatestAdded
+  :<|> getLatestUpdated
+  :<|> getTrending
+  :<|> getMod'
+  :<|> getGames
+  :<|> getGame'
+  :<|> validate
+  :<|> getTrackedMods
+  :<|> trackMod'
+  :<|> untrackMod'
+  :<|> getEndorsements
+  :<|> getColourSchemes = client api
 
 -- | Run a Nexus Mods API computation.  This is a convenience function
 -- that uses HTTPS and the default Nexus Mods URL.
