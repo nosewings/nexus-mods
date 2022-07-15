@@ -22,6 +22,7 @@ library
     default-extensions: BlockArguments
                       , DataKinds
                       , DuplicateRecordFields
+                      , FlexibleInstances
                       , GADTs
                       , ImportQualifiedPost
                       , LambdaCase

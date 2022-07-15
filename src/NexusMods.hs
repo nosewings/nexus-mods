@@ -7,6 +7,11 @@ module NexusMods (
   ModUser (..),
   ModEndorsement (..),
   Mod (..),
+  FileCategory (..),
+  FileUpdate (..),
+  FileDetails (..),
+  ModFiles (..),
+  MD5Lookup (..),
   Category (..),
   Game (..),
   User (..),
@@ -21,6 +26,9 @@ module NexusMods (
   getLatestUpdated,
   getTrending,
   getMod,
+  getModByHash,
+  getModFiles,
+  getFile,
   getGames,
   getGame,
   validate,
@@ -177,6 +185,88 @@ instance FromJSON Mod where
       <*> (v .: "available")
       <*> (v .: "user")
       <*> (v .: "endorsement")
+
+data FileCategory = Main | Update | Optional | OldVersion | Miscellaneous
+  deriving (Eq, Ord, Enum, Bounded, Read, Show)
+
+instance FromJSON FileCategory where
+  parseJSON = withText "FileCategory" \t -> case Text.toLower t of
+    "main" -> return Main
+    "update" -> return Update
+    "optional" -> return Optional
+    "old_version" -> return OldVersion
+    "miscellaneous" -> return Miscellaneous
+    _ -> fail ("expected a file category; got " ++ Text.unpack t)
+
+-- XXX This requires FlexibleInstances, and I think it's kind of
+-- suspect.  Might be better to use an internal newtype wrapper.
+instance ToHttpApiData [FileCategory] where
+  toQueryParam = Text.intercalate "," . map toText
+   where
+    toText Main = "main"
+    toText Update = "update"
+    toText Optional = "optional"
+    toText OldVersion = "old_version"
+    toText Miscellaneous = "miscellaneous"
+
+data FileUpdate = FileUpdate
+  { oldFileId :: Int,
+    newFileId :: Int,
+    oldFileName :: String,
+    newFileName :: String,
+    -- NOTE Omitted `uploaded_timestamp`.
+    uploadedTime :: UTCTime
+  }
+  deriving (Eq, Ord, Read, Show)
+
+deriveFromJSON deriveJSONOptions ''FileUpdate
+
+data FileDetails = FileDetails
+  { -- NOTE Omitted `id`.  As far as I can tell, this field is always
+    -- a two-element array [fileId, 100].
+    uid :: Int,
+    fileId :: Int,
+    name :: String,
+    version :: String,
+    categoryId :: Int,
+    categoryName :: FileCategory,
+    isPrimary :: Bool,
+    size :: Int,
+    fileName :: String,
+    modVersion :: String,
+    -- NOTE Omitted `uploaded_timestamp`.
+    uploaded_time :: UTCTime,
+    externalVirusScanUrl :: String,
+    description :: String,
+    sizeKb :: Int,
+    sizeInBytes :: Int,
+    changelog_html :: String,
+    content_preview_link :: String
+    -- NOTE Objects from the `{md5_hash}.json` endpoint also have an
+    -- `md5` field, which contains the file's MD5 hash.  We omit it,
+    -- because 1. then we can use this type at multiple endpoints, and
+    -- 2. if you've found a file via its MD5 hash, you don't need to
+    -- be told it.
+  }
+  deriving (Eq, Ord, Read, Show)
+
+deriveFromJSON deriveJSONOptions ''FileDetails
+
+data ModFiles = ModFiles
+  { files :: [FileDetails],
+    fileUpdates :: [FileUpdate]
+  }
+  deriving (Eq, Ord, Read, Show)
+
+deriveFromJSON deriveJSONOptions ''ModFiles
+
+data MD5Lookup = MD5Lookup
+  { mod :: Mod,
+    fileDetails :: FileDetails
+  }
+  deriving (Eq, Ord, Read, Show)
+
+deriveFromJSON deriveJSONOptions ''MD5Lookup
 
 data Category' = Category'
   { categoryId :: Int,
@@ -349,6 +439,9 @@ type NexusModsAPI =
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "latest_updated.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Mod]
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "trending.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Mod]
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" String :> Header' '[Required] "apikey" String :> Get '[JSON] Mod
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "md5_search" :> Capture "md5_hash" String :> Header' '[Required] "apikey" String :> Get '[JSON] [MD5Lookup]
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files.json" :> QueryParam "category" [FileCategory] :> Header' '[Required] "apikey" String :> Get '[JSON] ModFiles
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files" :> Capture "file_id" String :> Header' '[Required] "apikey" String :> Get '[JSON] FileDetails
     :<|> "v1" :> "games.json" :> Header' '[Required] "apikey" String :> Header "include_unapproved" Bool :> Get '[JSON] [Game]
     :<|> "v1" :> "games" :> Header' '[Required] "apikey" String :> Capture "game_domain_name" String :> Get '[JSON] Game
     :<|> "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
@@ -392,6 +485,23 @@ getMod' :: String -> String -> String -> ClientM Mod
 -- | Get a mod by game and ID.
 getMod :: String -> Int -> String -> ClientM Mod
 getMod gameDomainName id = getMod' gameDomainName (show id ++ ".json")
+
+-- | Internal version of getModByHash.
+getModByHash' :: String -> String -> String -> ClientM [MD5Lookup]
+
+-- | Given an MD5 hash, get all mods that have a file with that hash.
+getModByHash :: String -> String -> String -> ClientM [MD5Lookup]
+getModByHash gameDomainName md5Hash = getModByHash' gameDomainName (md5Hash ++ ".json")
+
+-- | Get a mod's list of files.
+getModFiles :: String -> Int -> Maybe [FileCategory] -> String -> ClientM ModFiles
+
+-- | Internal version of @getFile@.
+getFile' :: String -> Int -> String -> String -> ClientM FileDetails
+
+-- | Get a specific file.
+getFile :: String -> Int -> Int -> String -> ClientM FileDetails
+getFile gameDomainName modId fileId = getFile' gameDomainName modId (show fileId ++ ".json")
 
 -- | Get all games.
 getGames :: String -> Maybe Bool -> ClientM [Game]
@@ -447,6 +557,9 @@ getUpdates
   :<|> getLatestUpdated
   :<|> getTrending
   :<|> getMod'
+  :<|> getModByHash'
+  :<|> getModFiles
+  :<|> getFile'
   :<|> getGames
   :<|> getGame'
   :<|> validate
