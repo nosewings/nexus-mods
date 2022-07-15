@@ -493,8 +493,13 @@ getModByHash' :: String -> String -> String -> ClientM [MD5Lookup]
 getModByHash :: String -> String -> String -> ClientM [MD5Lookup]
 getModByHash gameDomainName md5Hash = getModByHash' gameDomainName (md5Hash ++ ".json")
 
+-- | Internal version of @getModFiles@.
+getModFiles' :: String -> Int -> Maybe [FileCategory] -> String -> ClientM ModFiles
+
 -- | Get a mod's list of files.
-getModFiles :: String -> Int -> Maybe [FileCategory] -> String -> ClientM ModFiles
+getModFiles :: String -> Int -> [FileCategory] -> String -> ClientM ModFiles
+getModFiles gameDomainName md5Hash [] = getModFiles' gameDomainName md5Hash Nothing
+getModFiles gameDomainName md5Hash fileCategories = getModFiles' gameDomainName md5Hash (Just fileCategories)
 
 -- | Internal version of @getFile@.
 getFile' :: String -> Int -> String -> String -> ClientM FileDetails
@@ -558,7 +563,7 @@ getUpdates
   :<|> getTrending
   :<|> getMod'
   :<|> getModByHash'
-  :<|> getModFiles
+  :<|> getModFiles'
   :<|> getFile'
   :<|> getGames
   :<|> getGame'
