@@ -12,6 +12,7 @@ module NexusMods (
   FileDetails (..),
   ModFiles (..),
   MD5Lookup (..),
+  DownloadLink (..),
   Category (..),
   Game (..),
   User (..),
@@ -29,6 +30,7 @@ module NexusMods (
   getModByHash,
   getModFiles,
   getFile,
+  getDownloadLink,
   getGames,
   getGame,
   validate,
@@ -268,6 +270,23 @@ data MD5Lookup = MD5Lookup
 
 deriveFromJSON deriveJSONOptions ''MD5Lookup
 
+newtype DownloadExpiry = DownloadExpiry POSIXTime
+  deriving (Eq, Ord, Read, Show)
+
+instance ToHttpApiData DownloadExpiry where
+  toQueryParam (DownloadExpiry t) = Text.pack . show . round $ t
+
+data DownloadLink = DownloadLink
+  { name :: String,
+    shortName :: String,
+    uri :: String
+  }
+  deriving (Eq, Ord, Read, Show)
+
+instance FromJSON DownloadLink where
+  parseJSON = withObject "DownloadLink" \v ->
+    DownloadLink <$> (v .: "name") <*> (v .: "short_name") <*> (v .: "URI")
+
 data Category' = Category'
   { categoryId :: Int,
     name :: String,
@@ -442,6 +461,7 @@ type NexusModsAPI =
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "md5_search" :> Capture "md5_hash" String :> Header' '[Required] "apikey" String :> Get '[JSON] [MD5Lookup]
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files.json" :> QueryParam "category" [FileCategory] :> Header' '[Required] "apikey" String :> Get '[JSON] ModFiles
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files" :> Capture "file_id" String :> Header' '[Required] "apikey" String :> Get '[JSON] FileDetails
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files" :> Capture "id" Int :> "download_link.json" :> QueryParam "key" String :> QueryParam "expires" DownloadExpiry :> Header' '[Required] "apikey" String :> Get '[JSON] [DownloadLink]
     :<|> "v1" :> "games.json" :> Header' '[Required] "apikey" String :> Header "include_unapproved" Bool :> Get '[JSON] [Game]
     :<|> "v1" :> "games" :> Header' '[Required] "apikey" String :> Capture "game_domain_name" String :> Get '[JSON] Game
     :<|> "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
@@ -508,6 +528,13 @@ getFile' :: String -> Int -> String -> String -> ClientM FileDetails
 getFile :: String -> Int -> Int -> String -> ClientM FileDetails
 getFile gameDomainName modId fileId = getFile' gameDomainName modId (show fileId ++ ".json")
 
+-- | Internal version of @getDownloadLink@.
+getDownloadLink' :: String -> Int -> Int -> Maybe String -> Maybe DownloadExpiry -> String -> ClientM [DownloadLink]
+
+-- | Get a download link for a mod file.
+getDownloadLink :: String -> Int -> Int -> Maybe String -> Maybe POSIXTime -> String -> ClientM [DownloadLink]
+getDownloadLink gameDomainName modId id key expires = getDownloadLink' gameDomainName modId id key (DownloadExpiry <$> expires)
+
 -- | Get all games.
 getGames :: String -> Maybe Bool -> ClientM [Game]
 
@@ -565,6 +592,7 @@ getUpdates
   :<|> getModByHash'
   :<|> getModFiles'
   :<|> getFile'
+  :<|> getDownloadLink'
   :<|> getGames
   :<|> getGame'
   :<|> validate
