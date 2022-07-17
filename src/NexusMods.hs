@@ -598,7 +598,7 @@ trackMod k d m =
     _ -> True
 
 -- | Internal version of @untrackMod@.
-untrackMod' :: [Char] -> [Char] -> Int -> ClientM (Union '[WithStatus 200 Message, WithStatus 404 Message])
+untrackMod' :: String -> String -> Int -> ClientM (Union '[WithStatus 200 Message, WithStatus 404 Message])
 
 -- | Stop tracking a mod.  Returns @True@ if the user was previously
 -- tracking the mod.
