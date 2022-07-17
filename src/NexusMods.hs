@@ -308,9 +308,9 @@ data Category' = Category'
   deriving (Eq, Ord, Read, Show)
 
 instance FromJSON Category' where
-  -- NOTE The @Category'@ type is internal; it exists only for the
-  -- purposes of converting @[Category']@ into @[Category]@.
-  -- Therefore, we use the name @"Category"@ here.
+  -- The @Category'@ type is internal; it exists only for the purposes
+  -- of converting @[Category']@ into @[Category]@.  Therefore, we use
+  -- the name @"Category"@ here.
   parseJSON = withObject "Category" \v -> do
     categoryId <- v .: "category_id"
     name <- v .: "name"
@@ -438,6 +438,7 @@ instance FromJSON Colour where
     case readP_to_S colour (Text.unpack t) of
       [] -> fail ("expected an RGB color string; got " ++ Text.unpack t)
       [(colour, "")] -> return colour
+      -- This can only occur if there is a bug in our @colour@ parser.
       _ -> impossible
    where
     colour = char '#' *> (Colour <$> hexWord8 <*> hexWord8 <*> hexWord8) <* eof
@@ -451,6 +452,8 @@ instance FromJSON Colour where
               | isDigit c -> ord c - ord '0'
               | isAsciiUpper c -> ord c - ord 'A'
               | isAsciiLower c -> ord c - ord 'a'
+              -- This can only occur if there is a bug in
+              -- @getHexDigit@.
               | otherwise -> impossible
 
 data ColourScheme = ColourScheme
@@ -570,7 +573,7 @@ getGames :: String -> Maybe Bool -> ClientM [Game]
 -- | Internal version of @getGame@.  This is necessary because the API
 -- path is @/v1/games/{game_domain_name}.json@, but Servant does not
 -- (as far as I know) give us the ability to modify a captured path
--- component.
+-- component, so we have to add the @.json@ on ourselves.
 getGame' :: String -> String -> ClientM Game
 
 -- | Get a specific game.
