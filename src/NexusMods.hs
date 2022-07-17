@@ -475,11 +475,59 @@ type NexusModsAPI =
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "trending.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Mod]
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" String :> Header' '[Required] "apikey" String :> Get '[JSON] Mod
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "md5_search" :> Capture "md5_hash" String :> Header' '[Required] "apikey" String :> Get '[JSON] [MD5Lookup]
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" Int :> "endorse.json" :> ReqBody '[FormUrlEncoded] EndorseVersion :> Header' '[Required] "apikey" String :> Post '[JSON] Message
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" Int :> "abstain.json" :> ReqBody '[FormUrlEncoded] EndorseVersion :> Header' '[Required] "apikey" String :> Post '[JSON] Message
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files.json" :> QueryParam "category" [FileCategory] :> Header' '[Required] "apikey" String :> Get '[JSON] ModFiles
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files" :> Capture "file_id" String :> Header' '[Required] "apikey" String :> Get '[JSON] FileDetails
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files" :> Capture "id" Int :> "download_link.json" :> QueryParam "key" String :> QueryParam "expires" DownloadExpiry :> Header' '[Required] "apikey" String :> Get '[JSON] [DownloadLink]
+    :<|> ( "v1"
+            :> "games"
+            :> Capture "game_domain_name" String
+            :> "mods"
+            :> Capture "id" Int
+            :> "endorse.json"
+            :> ReqBody '[FormUrlEncoded] EndorseVersion
+            :> Header' '[Required] "apikey" String
+            :> Post '[JSON] Message
+         )
+    :<|> ( "v1"
+            :> "games"
+            :> Capture "game_domain_name" String
+            :> "mods"
+            :> Capture "id" Int
+            :> "abstain.json"
+            :> ReqBody '[FormUrlEncoded] EndorseVersion
+            :> Header' '[Required] "apikey" String
+            :> Post '[JSON] Message
+         )
+    :<|> ( "v1"
+            :> "games"
+            :> Capture "game_domain_name" String
+            :> "mods"
+            :> Capture "mod_id" Int
+            :> "files.json"
+            :> QueryParam "category" [FileCategory]
+            :> Header' '[Required] "apikey" String
+            :> Get '[JSON] ModFiles
+         )
+    :<|> ( "v1"
+            :> "games"
+            :> Capture "game_domain_name" String
+            :> "mods"
+            :> Capture "mod_id" Int
+            :> "files"
+            :> Capture "file_id" String
+            :> Header' '[Required] "apikey" String
+            :> Get '[JSON] FileDetails
+         )
+    :<|> ( "v1"
+            :> "games"
+            :> Capture "game_domain_name" String
+            :> "mods"
+            :> Capture "mod_id" Int
+            :> "files"
+            :> Capture "id" Int
+            :> "download_link.json"
+            :> QueryParam "key" String
+            :> QueryParam "expires" DownloadExpiry
+            :> Header' '[Required] "apikey" String
+            :> Get '[JSON] [DownloadLink]
+         )
     :<|> "v1" :> "games.json" :> Header "include_unapproved" Bool :> Header' '[Required] "apikey" String :> Get '[JSON] [Game]
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> Header' '[Required] "apikey" String :> Get '[JSON] Game
     :<|> "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
