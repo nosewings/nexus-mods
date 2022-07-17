@@ -612,8 +612,11 @@ getFile gameDomainName modId fileId = getFile' gameDomainName modId (show fileId
 getDownloadLink' :: String -> Int -> Int -> Maybe String -> Maybe DownloadExpiry -> String -> ClientM [DownloadLink]
 
 -- | Get a download link for a mod file.
-getDownloadLink :: String -> Int -> Int -> Maybe String -> Maybe POSIXTime -> String -> ClientM [DownloadLink]
-getDownloadLink gameDomainName modId id key expires = getDownloadLink' gameDomainName modId id key (DownloadExpiry <$> expires)
+getDownloadLink :: String -> Int -> Int -> Maybe (String, POSIXTime) -> String -> ClientM [DownloadLink]
+getDownloadLink gameDomainName modId id keyExpires = getDownloadLink' gameDomainName modId id key expires
+ where
+  key = fst <$> keyExpires
+  expires = DownloadExpiry . snd <$> keyExpires
 
 -- | Get all games.
 getGames :: Maybe Bool -> String -> ClientM [Game]
