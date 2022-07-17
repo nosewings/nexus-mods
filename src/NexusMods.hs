@@ -28,6 +28,8 @@ module NexusMods (
   getTrending,
   getMod,
   getModByHash,
+  endorse,
+  abstain,
   getModFiles,
   getFile,
   getDownloadLink,
@@ -48,7 +50,9 @@ import Data.Aeson.Types
 import Data.Char
 import Data.Data
 import Data.Foldable
+import Data.Function
 import Data.Functor
+import Data.HashMap.Strict qualified as HashMap
 import Data.Map (Map)
 import Data.Maybe
 import Data.SOP.NS
@@ -63,6 +67,7 @@ import NexusMods.TH
 import Servant.API
 import Servant.Client
 import Text.ParserCombinators.ReadP
+import Web.FormUrlEncoded
 
 impossible :: a
 impossible = error "an impossible situation has occurred"
@@ -270,6 +275,14 @@ data MD5Lookup = MD5Lookup
 
 deriveFromJSON deriveJSONOptions ''MD5Lookup
 
+newtype EndorseVersion = EndorseVersion
+  { version :: Maybe String
+  }
+  deriving (Eq, Ord, Read, Show)
+
+instance ToForm EndorseVersion where
+  toForm v = version (v :: EndorseVersion) & fmap (\v -> ("version", [Text.pack v])) & toList & HashMap.fromList & Form
+
 newtype DownloadExpiry = DownloadExpiry POSIXTime
   deriving (Eq, Ord, Read, Show)
 
@@ -459,6 +472,8 @@ type NexusModsAPI =
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "trending.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Mod]
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" String :> Header' '[Required] "apikey" String :> Get '[JSON] Mod
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "md5_search" :> Capture "md5_hash" String :> Header' '[Required] "apikey" String :> Get '[JSON] [MD5Lookup]
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" Int :> "endorse.json" :> Header' '[Required] "apikey" String :> ReqBody '[FormUrlEncoded] EndorseVersion :> Post '[JSON] Message
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" Int :> "abstain.json" :> Header' '[Required] "apikey" String :> ReqBody '[FormUrlEncoded] EndorseVersion :> Post '[JSON] Message
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files.json" :> QueryParam "category" [FileCategory] :> Header' '[Required] "apikey" String :> Get '[JSON] ModFiles
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files" :> Capture "file_id" String :> Header' '[Required] "apikey" String :> Get '[JSON] FileDetails
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files" :> Capture "id" Int :> "download_link.json" :> QueryParam "key" String :> QueryParam "expires" DownloadExpiry :> Header' '[Required] "apikey" String :> Get '[JSON] [DownloadLink]
@@ -512,6 +527,20 @@ getModByHash' :: String -> String -> String -> ClientM [MD5Lookup]
 -- | Given an MD5 hash, get all mods that have a file with that hash.
 getModByHash :: String -> String -> String -> ClientM [MD5Lookup]
 getModByHash gameDomainName md5Hash = getModByHash' gameDomainName (md5Hash ++ ".json")
+
+-- | Internal version of @endorse@.
+endorse' :: String -> Int -> String -> EndorseVersion -> ClientM Message
+
+-- | Endorse a mod.
+endorse :: String -> Int -> String -> Maybe String -> ClientM Message
+endorse gameDomainName id apikey version = endorse' gameDomainName id apikey (EndorseVersion version)
+
+-- | Internal version of @abstain@..
+abstain' :: String -> Int -> String -> EndorseVersion -> ClientM Message
+
+-- | Stop endorsing a mod.
+abstain :: String -> Int -> String -> Maybe String -> ClientM Message
+abstain gameDomainName id apikey version = abstain' gameDomainName id apikey (EndorseVersion version)
 
 -- | Internal version of @getModFiles@.
 getModFiles' :: String -> Int -> Maybe [FileCategory] -> String -> ClientM ModFiles
@@ -590,6 +619,8 @@ getUpdates
   :<|> getTrending
   :<|> getMod'
   :<|> getModByHash'
+  :<|> endorse'
+  :<|> abstain'
   :<|> getModFiles'
   :<|> getFile'
   :<|> getDownloadLink'

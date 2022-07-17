@@ -10,6 +10,7 @@ library
     build-depends:      base
                       , aeson
                       , containers
+                      , http-api-data
                       , http-client
                       , http-client-tls
                       , servant
@@ -17,6 +18,7 @@ library
                       , sop-core
                       , text
                       , time
+                      , unordered-containers
     hs-source-dirs:     src
     default-language:   Haskell2010
     default-extensions: BlockArguments
