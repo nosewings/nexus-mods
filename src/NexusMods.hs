@@ -468,32 +468,32 @@ data ColourScheme = ColourScheme
 deriveFromJSON deriveJSONOptions ''ColourScheme
 
 type NexusModsAPI =
-  "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "updated.json" :> Header' '[Required] "apikey" String :> QueryParam' '[Required] "period" Period :> Get '[JSON] [ModUpdate]
+  "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "updated.json" :> QueryParam' '[Required] "period" Period :> Header' '[Required] "apikey" String :> Get '[JSON] [ModUpdate]
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "changelogs.json" :> Header' '[Required] "apikey" String :> Get '[JSON] Changelogs
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "latest_added.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Mod]
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "latest_updated.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Mod]
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "trending.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Mod]
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" String :> Header' '[Required] "apikey" String :> Get '[JSON] Mod
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "md5_search" :> Capture "md5_hash" String :> Header' '[Required] "apikey" String :> Get '[JSON] [MD5Lookup]
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" Int :> "endorse.json" :> Header' '[Required] "apikey" String :> ReqBody '[FormUrlEncoded] EndorseVersion :> Post '[JSON] Message
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" Int :> "abstain.json" :> Header' '[Required] "apikey" String :> ReqBody '[FormUrlEncoded] EndorseVersion :> Post '[JSON] Message
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" Int :> "endorse.json" :> ReqBody '[FormUrlEncoded] EndorseVersion :> Header' '[Required] "apikey" String :> Post '[JSON] Message
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" Int :> "abstain.json" :> ReqBody '[FormUrlEncoded] EndorseVersion :> Header' '[Required] "apikey" String :> Post '[JSON] Message
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files.json" :> QueryParam "category" [FileCategory] :> Header' '[Required] "apikey" String :> Get '[JSON] ModFiles
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files" :> Capture "file_id" String :> Header' '[Required] "apikey" String :> Get '[JSON] FileDetails
     :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "files" :> Capture "id" Int :> "download_link.json" :> QueryParam "key" String :> QueryParam "expires" DownloadExpiry :> Header' '[Required] "apikey" String :> Get '[JSON] [DownloadLink]
-    :<|> "v1" :> "games.json" :> Header' '[Required] "apikey" String :> Header "include_unapproved" Bool :> Get '[JSON] [Game]
-    :<|> "v1" :> "games" :> Header' '[Required] "apikey" String :> Capture "game_domain_name" String :> Get '[JSON] Game
+    :<|> "v1" :> "games.json" :> Header "include_unapproved" Bool :> Header' '[Required] "apikey" String :> Get '[JSON] [Game]
+    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> Header' '[Required] "apikey" String :> Get '[JSON] Game
     :<|> "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
     :<|> "v1" :> "user" :> "tracked_mods.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [ModRef]
     :<|> ( "v1" :> "user" :> "tracked_mods.json"
-            :> Header' '[Required] "apikey" String
             :> QueryParam' '[Required] "domain_name" String
             :> QueryParam' '[Required] "mod_id" Int
+            :> Header' '[Required] "apikey" String
             :> UVerb POST '[JSON] '[WithStatus 200 Message, WithStatus 201 Message]
          )
     :<|> ( "v1" :> "user" :> "tracked_mods.json"
-            :> Header' '[Required] "apikey" String
             :> QueryParam' '[Required] "domain_name" String
             :> QueryParam' '[Required] "mod_id" Int
+            :> Header' '[Required] "apikey" String
             :> UVerb DELETE '[JSON] [WithStatus 200 Message, WithStatus 404 Message]
          )
     :<|> "v1" :> "user" :> "endorsements.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Endorsement]
@@ -503,7 +503,7 @@ api :: Proxy NexusModsAPI
 api = Proxy
 
 -- | Get a list of mod updates within a given time period.
-getUpdates :: String -> String -> Period -> ClientM [ModUpdate]
+getUpdates :: String -> Period -> String -> ClientM [ModUpdate]
 
 -- | Get a mod's list of changelogs.
 getChangelogs :: String -> Int -> String -> ClientM Changelogs
@@ -532,18 +532,18 @@ getModByHash :: String -> String -> String -> ClientM [MD5Lookup]
 getModByHash gameDomainName md5Hash = getModByHash' gameDomainName (md5Hash ++ ".json")
 
 -- | Internal version of @endorse@.
-endorse' :: String -> Int -> String -> EndorseVersion -> ClientM Message
+endorse' :: String -> Int -> EndorseVersion -> String -> ClientM Message
 
 -- | Endorse a mod.
-endorse :: String -> Int -> String -> Maybe String -> ClientM Message
-endorse gameDomainName id apikey version = endorse' gameDomainName id apikey (EndorseVersion version)
+endorse :: String -> Int -> Maybe String -> String -> ClientM Message
+endorse gameDomainName id version = endorse' gameDomainName id (EndorseVersion version)
 
 -- | Internal version of @abstain@..
-abstain' :: String -> Int -> String -> EndorseVersion -> ClientM Message
+abstain' :: String -> Int -> EndorseVersion -> String -> ClientM Message
 
 -- | Stop endorsing a mod.
-abstain :: String -> Int -> String -> Maybe String -> ClientM Message
-abstain gameDomainName id apikey version = abstain' gameDomainName id apikey (EndorseVersion version)
+abstain :: String -> Int -> Maybe String -> String -> ClientM Message
+abstain gameDomainName id version = abstain' gameDomainName id (EndorseVersion version)
 
 -- | Internal version of @getModFiles@.
 getModFiles' :: String -> Int -> Maybe [FileCategory] -> String -> ClientM ModFiles
@@ -568,7 +568,7 @@ getDownloadLink :: String -> Int -> Int -> Maybe String -> Maybe POSIXTime -> St
 getDownloadLink gameDomainName modId id key expires = getDownloadLink' gameDomainName modId id key (DownloadExpiry <$> expires)
 
 -- | Get all games.
-getGames :: String -> Maybe Bool -> ClientM [Game]
+getGames :: Maybe Bool -> String -> ClientM [Game]
 
 -- | Internal version of @getGame@.  This is necessary because the API
 -- path is @/v1/games/{game_domain_name}.json@, but Servant does not
@@ -578,7 +578,7 @@ getGame' :: String -> String -> ClientM Game
 
 -- | Get a specific game.
 getGame :: String -> String -> ClientM Game
-getGame key gameDomainName = getGame' key (gameDomainName ++ ".json")
+getGame gameDomainName = getGame' (gameDomainName ++ ".json")
 
 -- | Validate a user's API key and return their info.
 validate :: String -> ClientM User
@@ -587,24 +587,24 @@ validate :: String -> ClientM User
 getTrackedMods :: String -> ClientM [ModRef]
 
 -- | Internal version of @trackMod@.
-trackMod' :: String -> String -> Int -> ClientM (Union '[WithStatus 200 Message, WithStatus 201 Message])
+trackMod' :: String -> Int -> String -> ClientM (Union '[WithStatus 200 Message, WithStatus 201 Message])
 
 -- | Start tracking a mod.  Returns @True@ if the user was not already
 -- tracking the mod.
-trackMod :: String -> String -> Int -> ClientM Bool
-trackMod k d m =
-  trackMod' k d m <&> \case
+trackMod :: String -> Int -> String -> ClientM Bool
+trackMod domainName modId apikey =
+  trackMod' domainName modId apikey <&> \case
     Z _ -> False
     _ -> True
 
 -- | Internal version of @untrackMod@.
-untrackMod' :: String -> String -> Int -> ClientM (Union '[WithStatus 200 Message, WithStatus 404 Message])
+untrackMod' :: String -> Int -> String -> ClientM (Union '[WithStatus 200 Message, WithStatus 404 Message])
 
 -- | Stop tracking a mod.  Returns @True@ if the user was previously
 -- tracking the mod.
-untrackMod :: String -> String -> Int -> ClientM Bool
-untrackMod a b c =
-  untrackMod' a b c <&> \case
+untrackMod :: String -> Int -> String -> ClientM Bool
+untrackMod domainName modId apikey =
+  untrackMod' domainName modId apikey <&> \case
     Z _ -> True
     _ -> False
 
@@ -634,7 +634,8 @@ getUpdates
   :<|> trackMod'
   :<|> untrackMod'
   :<|> getEndorsements
-  :<|> getColourSchemes = client api
+  :<|> getColourSchemes =
+    client api
 
 -- | Run a Nexus Mods API computation.  This is a convenience function
 -- that uses HTTPS and the default Nexus Mods URL.
