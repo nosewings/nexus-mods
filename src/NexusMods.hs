@@ -39,12 +39,12 @@ module NexusMods (
   getTrackedMods,
   trackMod,
   untrackMod,
+  getEndorsements,
   getColourSchemes,
   runNexus,
 ) where
 
 import Data.Aeson
-import Data.Aeson.Internal (JSONPathElement (..))
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Char
@@ -287,7 +287,7 @@ newtype DownloadExpiry = DownloadExpiry POSIXTime
   deriving (Eq, Ord, Read, Show)
 
 instance ToHttpApiData DownloadExpiry where
-  toQueryParam (DownloadExpiry t) = Text.pack . show . round $ t
+  toQueryParam (DownloadExpiry t) = Text.pack . show . round @_ @Integer $ t
 
 data DownloadLink = DownloadLink
   { name :: String,
@@ -536,13 +536,13 @@ type NexusModsAPI =
             :> QueryParam' '[Required] "domain_name" String
             :> QueryParam' '[Required] "mod_id" Int
             :> Header' '[Required] "apikey" String
-            :> UVerb POST '[JSON] '[WithStatus 200 Message, WithStatus 201 Message]
+            :> UVerb 'POST '[JSON] '[WithStatus 200 Message, WithStatus 201 Message]
          )
     :<|> ( "v1" :> "user" :> "tracked_mods.json"
             :> QueryParam' '[Required] "domain_name" String
             :> QueryParam' '[Required] "mod_id" Int
             :> Header' '[Required] "apikey" String
-            :> UVerb DELETE '[JSON] [WithStatus 200 Message, WithStatus 404 Message]
+            :> UVerb 'DELETE '[JSON] [WithStatus 200 Message, WithStatus 404 Message]
          )
     :<|> "v1" :> "user" :> "endorsements.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Endorsement]
     :<|> "v1" :> "colourschemes" :> Header' '[Required] "apikey" String :> Get '[JSON] [ColourScheme]

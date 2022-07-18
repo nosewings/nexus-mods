@@ -31,4 +31,7 @@ library
                       , MultiWayIf
                       , OverloadedStrings
                       , TemplateHaskell
+                      , TypeApplications
                       , TypeOperators
+    ghc-options:        -Wall
+                        -Wno-name-shadowing
