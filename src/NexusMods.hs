@@ -243,13 +243,13 @@ data FileDetails = FileDetails
     fileName :: String,
     modVersion :: String,
     -- NOTE Omitted `uploaded_timestamp`.
-    uploaded_time :: UTCTime,
+    uploadedTime :: UTCTime,
     externalVirusScanUrl :: String,
     description :: String,
     sizeKb :: Int,
     sizeInBytes :: Int,
-    changelog_html :: String,
-    content_preview_link :: String
+    changelogHtml :: String,
+    contentPreviewLink :: String
     -- NOTE Objects from the `{md5_hash}.json` endpoint also have an
     -- `md5` field, which contains the file's MD5 hash.  We omit it,
     -- because 1. then we can use this type at multiple endpoints, and
