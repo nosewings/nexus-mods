@@ -23,6 +23,7 @@ library
     default-language:   Haskell2010
     default-extensions: BlockArguments
                       , DataKinds
+                      , DeriveGeneric
                       , DuplicateRecordFields
                       , FlexibleInstances
                       , GADTs

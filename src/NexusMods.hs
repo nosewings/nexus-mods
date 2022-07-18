@@ -44,6 +44,7 @@ module NexusMods (
   runNexus,
 ) where
 
+import GHC.Generics
 import Data.Aeson
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -73,7 +74,7 @@ impossible :: a
 impossible = error "an impossible situation has occurred"
 
 data Period = Day | Week | Month
-  deriving (Eq, Ord, Enum, Bounded, Read, Show)
+  deriving (Eq, Ord, Enum, Bounded, Read, Show, Generic)
 
 instance ToHttpApiData Period where
   toQueryParam Day = "1d"
@@ -85,7 +86,7 @@ data ModUpdate = ModUpdate
     latestFileUpdate :: POSIXTime,
     latestModActivity :: POSIXTime
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''ModUpdate
 
@@ -100,7 +101,7 @@ data PublishedModInfo = PublishedModInfo
     modDownloads :: Int,
     modUniqueDownloads :: Int
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''PublishedModInfo
 
@@ -108,20 +109,20 @@ data ModStatus
   = NotPublished
   | Published PublishedModInfo
   | Hidden
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 data ModUser = ModUser
   { memberId :: Int,
     memberGroupId :: Int,
     name :: String
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''ModUser
 
 -- TODO Is there anything else?
 data EndorsementStatus = Endorsed | Abstained
-  deriving (Eq, Ord, Enum, Bounded, Read, Show)
+  deriving (Eq, Ord, Enum, Bounded, Read, Show, Generic)
 
 instance FromJSON EndorsementStatus where
   parseJSON = withText "EndorsementStatus" \case
@@ -135,7 +136,7 @@ data ModEndorsement = ModEndorsement
     -- TODO The objects from the server also have a "version" field,
     -- but it seems to always be null.  Is it?
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''ModEndorsement
 
@@ -162,7 +163,7 @@ data Mod = Mod
     user :: ModUser,
     endorsement :: Maybe ModEndorsement
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 instance FromJSON Mod where
   parseJSON = withObject "Mod" \v -> do
@@ -194,7 +195,7 @@ instance FromJSON Mod where
       <*> (v .: "endorsement")
 
 data FileCategory = Main | Update | Optional | OldVersion | Miscellaneous
-  deriving (Eq, Ord, Enum, Bounded, Read, Show)
+  deriving (Eq, Ord, Enum, Bounded, Read, Show, Generic)
 
 instance FromJSON FileCategory where
   parseJSON = withText "FileCategory" \t -> case Text.toLower t of
@@ -224,7 +225,7 @@ data FileUpdate = FileUpdate
     -- NOTE Omitted `uploaded_timestamp`.
     uploadedTime :: UTCTime
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''FileUpdate
 
@@ -255,7 +256,7 @@ data FileDetails = FileDetails
     -- 2. if you've found a file via its MD5 hash, you don't need to
     -- be told it.
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''FileDetails
 
@@ -263,7 +264,7 @@ data ModFiles = ModFiles
   { files :: [FileDetails],
     fileUpdates :: [FileUpdate]
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''ModFiles
 
@@ -271,20 +272,20 @@ data MD5Lookup = MD5Lookup
   { mod :: Mod,
     fileDetails :: FileDetails
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''MD5Lookup
 
 newtype EndorseVersion = EndorseVersion
   { version :: Maybe String
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 instance ToForm EndorseVersion where
   toForm v = version (v :: EndorseVersion) & fmap (\v -> ("version", [Text.pack v])) & toList & HashMap.fromList & Form
 
 newtype DownloadExpiry = DownloadExpiry POSIXTime
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 instance ToHttpApiData DownloadExpiry where
   toQueryParam (DownloadExpiry t) = Text.pack . show . round @_ @Integer $ t
@@ -294,7 +295,7 @@ data DownloadLink = DownloadLink
     shortName :: String,
     uri :: String
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 instance FromJSON DownloadLink where
   parseJSON = withObject "DownloadLink" \v ->
@@ -305,7 +306,7 @@ data Category' = Category'
     name :: String,
     parentCategory :: Maybe Int
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 instance FromJSON Category' where
   -- The @Category'@ type is internal; it exists only for the purposes
@@ -325,7 +326,7 @@ data Category = Category
     name :: String,
     parentCategory :: Maybe Category
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 -- | Stitch a list of @Category'@ together to form a list of
 -- @Category@.  Each @parentCategory@ becomes a reference to some
@@ -366,7 +367,7 @@ data Game = Game
     mods :: Int,
     categories :: [Category]
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 instance FromJSON Game where
   parseJSON = withObject "Game" \v ->
@@ -395,7 +396,7 @@ data User = User
     isPremium :: Bool,
     isSupporter :: Bool
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''User
 
@@ -403,7 +404,7 @@ data ModRef = ModRef
   { modId :: Int,
     domainName :: String
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''ModRef
 
@@ -415,14 +416,14 @@ data Endorsement = Endorsement
     -- but it seems to always be null.  Is it?
     status :: EndorsementStatus
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''Endorsement
 
 newtype Message = Message
   { message :: String
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''Message
 
@@ -431,7 +432,7 @@ data Colour = Colour
     blue :: Word8,
     green :: Word8
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 instance FromJSON Colour where
   parseJSON = withText "Colour" \t ->
@@ -463,7 +464,7 @@ data ColourScheme = ColourScheme
     secondaryColour :: Colour,
     darkerColour :: Colour
   }
-  deriving (Eq, Ord, Read, Show)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''ColourScheme
 
