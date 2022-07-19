@@ -11,7 +11,7 @@
           nexus-mods =
             final.haskell-nix.project' {
               src = ./.;
-              compiler-nix-name = "ghc8107";
+              compiler-nix-name = "ghc902";
               shell.tools = {
                 cabal = {};
                 haskell-language-server = {};
