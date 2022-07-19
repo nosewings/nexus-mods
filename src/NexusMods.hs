@@ -44,7 +44,6 @@ module NexusMods (
   runNexus,
 ) where
 
-import GHC.Generics
 import Data.Aeson
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -60,10 +59,13 @@ import Data.SOP.NS
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time
-import Data.Time.Clock.POSIX (POSIXTime)
+import Data.Time.Clock.POSIX
 import Data.Word
+import GHC.Generics
 import Network.HTTP.Client hiding (Proxy)
 import Network.HTTP.Client.TLS
+import NexusMods.Indexed qualified as Indexed
+import NexusMods.Surgery
 import NexusMods.TH
 import Servant.API
 import Servant.Client
@@ -83,12 +85,16 @@ instance ToHttpApiData Period where
 
 data ModUpdate = ModUpdate
   { modId :: Int,
-    latestFileUpdate :: POSIXTime,
-    latestModActivity :: POSIXTime
+    latestFileUpdate :: UTCTime,
+    latestModActivity :: UTCTime
   }
   deriving (Eq, Ord, Read, Show, Generic)
 
-deriveFromJSON deriveJSONOptions ''ModUpdate
+instance FromJSON ModUpdate where
+  parseJSON v =
+    genericParseJSON deriveJSONOptions v <&> animate Indexed.do
+      modifyRField @"latestFileUpdate" posixSecondsToUTCTime
+      modifyRField @"latestModActivity" posixSecondsToUTCTime
 
 -- | A list of mod changelogs.
 type Changelogs = Map String [String]
@@ -132,13 +138,17 @@ instance FromJSON EndorsementStatus where
 
 data ModEndorsement = ModEndorsement
   { endorseStatus :: EndorsementStatus,
-    timestamp :: POSIXTime
+    time :: UTCTime
     -- TODO The objects from the server also have a "version" field,
     -- but it seems to always be null.  Is it?
   }
   deriving (Eq, Ord, Read, Show, Generic)
 
-deriveFromJSON deriveJSONOptions ''ModEndorsement
+instance FromJSON ModEndorsement where
+  parseJSON v =
+    genericParseJSON deriveJSONOptions v <&> animate Indexed.do
+      t <- removeRField @"timestamp" @1
+      insertRField' @"time" (posixSecondsToUTCTime t)
 
 data Mod = Mod
   { status :: ModStatus,
@@ -298,8 +308,10 @@ data DownloadLink = DownloadLink
   deriving (Eq, Ord, Read, Show, Generic)
 
 instance FromJSON DownloadLink where
-  parseJSON = withObject "DownloadLink" \v ->
-    DownloadLink <$> (v .: "name") <*> (v .: "short_name") <*> (v .: "URI")
+  parseJSON v =
+    genericParseJSON deriveJSONOptions v <&> animate Indexed.do
+      t <- removeRField @"URI" @2
+      insertRField' @"uri" t
 
 data Category' = Category'
   { categoryId :: Int,
@@ -370,22 +382,7 @@ data Game = Game
   deriving (Eq, Ord, Read, Show, Generic)
 
 instance FromJSON Game where
-  parseJSON = withObject "Game" \v ->
-    Game
-      <$> (v .: "id")
-      <*> (v .: "name")
-      <*> (v .: "forum_url")
-      <*> (v .: "nexusmods_url")
-      <*> (v .: "genre")
-      <*> (v .: "file_count")
-      <*> (v .: "downloads")
-      <*> (v .: "domain_name")
-      <*> (v .: "approved_date")
-      <*> (v .: "file_views")
-      <*> (v .: "authors")
-      <*> (v .: "file_endorsements")
-      <*> (v .: "mods")
-      <*> (v .: "categories" <&> stitchCategories)
+  parseJSON v = genericParseJSON deriveJSONOptions v <&> animate (modifyRField @"categories" stitchCategories)
 
 -- | Details about a Nexus Mods user.
 data User = User
