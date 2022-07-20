@@ -12,7 +12,6 @@ import GHC.Generics
 import Generic.Data.Surgery (Data, FromORRep, InsRField, ModRField, OR, RmvRField, ToOR)
 import Generic.Data.Surgery qualified as GDS
 import NexusMods.Indexed qualified as Indexed
-import Prelude
 
 toOR' :: forall f l x. ToOR f l => IxState (Data f x) (OR l x) ()
 toOR' = imodify GDS.toOR'
