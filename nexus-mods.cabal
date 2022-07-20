@@ -37,11 +37,19 @@ library
                       , ImportQualifiedPost
                       , LambdaCase
                       , MultiWayIf
+                      , NoMonomorphismRestriction
                       , OverloadedStrings
                       , QualifiedDo
                       , ScopedTypeVariables
                       , TemplateHaskell
                       , TypeApplications
                       , TypeOperators
-    ghc-options:        -Wall
+    ghc-options:        -Weverything
+                        -Wno-all-missed-specialisations
+                        -Wno-implicit-prelude
+                        -Wno-missing-deriving-strategies
+                        -Wno-missing-local-signatures
+                        -Wno-missing-import-lists
+                        -Wno-missing-safe-haskell-mode
                         -Wno-name-shadowing
+                        -Wno-unsafe
