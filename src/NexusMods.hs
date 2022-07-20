@@ -186,23 +186,23 @@ instance FromJSON Mod where
         "published" -> Published <$> parseJSON (Object v)
         t -> fail ("expected one of \"not_published\", \"published\", or \"hidden\"; got " ++ Text.unpack t)
     Mod status
-      <$> (v .: "uid")
-      <*> (v .: "mod_id")
-      <*> (v .: "game_id")
-      <*> (v .: "allow_rating")
-      <*> (v .: "domain_name")
-      <*> (v .: "category_id")
-      <*> (v .: "version")
-      <*> (v .: "endorsement_count")
-      <*> (v .: "created_time")
-      <*> (v .: "updated_time")
-      <*> (v .: "author")
-      <*> (v .: "uploaded_by")
-      <*> (v .: "uploaded_users_profile_url")
-      <*> (v .: "contains_adult_content")
-      <*> (v .: "available")
-      <*> (v .: "user")
-      <*> (v .: "endorsement")
+      <$> v .: "uid"
+      <*> v .: "mod_id"
+      <*> v .: "game_id"
+      <*> v .: "allow_rating"
+      <*> v .: "domain_name"
+      <*> v .: "category_id"
+      <*> v .: "version"
+      <*> v .: "endorsement_count"
+      <*> v .: "created_time"
+      <*> v .: "updated_time"
+      <*> v .: "author"
+      <*> v .: "uploaded_by"
+      <*> v .: "uploaded_users_profile_url"
+      <*> v .: "contains_adult_content"
+      <*> v .: "available"
+      <*> v .: "user"
+      <*> v .: "endorsement"
 
 data FileCategory = Main | Update | Optional | OldVersion | Miscellaneous
   deriving (Eq, Ord, Enum, Bounded, Read, Show, Generic)
@@ -451,7 +451,7 @@ instance FromJSON Colour where
               | isAsciiUpper c -> ord c - ord 'A'
               | isAsciiLower c -> ord c - ord 'a'
               -- This can only occur if there is a bug in
-              -- @getHexDigit@.
+              -- @isHexDigit@.
               | otherwise -> impossible
 
 data ColourScheme = ColourScheme
