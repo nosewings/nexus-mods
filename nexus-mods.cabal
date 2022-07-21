@@ -6,6 +6,7 @@ maintainer:         coltharp@pdx.edu
 
 library
     exposed-modules:    NexusMods
+                      , NexusMods.Internal
     other-modules:      NexusMods.Indexed
                       , NexusMods.TH
                       , NexusMods.Surgery
