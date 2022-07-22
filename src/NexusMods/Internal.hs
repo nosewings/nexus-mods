@@ -1,28 +1,29 @@
 module NexusMods.Internal (
-  POSIXTime,
+  Category (..),
+  Game (..),
   Period (..),
+  UTCTime,
   ModUpdate (..),
-  Changelogs,
   PublishedModInfo (..),
   ModStatus (..),
   ModUser (..),
+  EndorsementStatus (..),
   ModEndorsement (..),
   Mod (..),
   FileCategory (..),
-  FileUpdate (..),
   FileDetails (..),
-  ModFiles (..),
   MD5Lookup (..),
-  EndorseVersion (..),
+  Changelogs,
+  FileUpdate (..),
+  ModFiles (..),
+  POSIXTime,
   DownloadExpiry (..),
   DownloadLink (..),
-  Category (..),
-  Game (..),
-  User (..),
-  ModRef (..),
-  EndorsementStatus (..),
-  Endorsement (..),
   Message (..),
+  EndorseVersion (..),
+  User (..),
+  Endorsement (..),
+  ModRef (..),
   Colour (..),
   ColourScheme (..),
   NexusModsAPI,
@@ -55,6 +56,77 @@ import Web.FormUrlEncoded
 impossible :: a
 impossible = error "an impossible situation has occurred"
 
+data Category' = Category'
+  { categoryId :: Int,
+    name :: String,
+    parentCategory :: Maybe Int
+  }
+  deriving (Eq, Ord, Read, Show, Generic)
+
+instance FromJSON Category' where
+  -- The @Category'@ type is internal; it exists only for the purposes
+  -- of converting @[Category']@ into @[Category]@.  Therefore, we use
+  -- the name @"Category"@ here.
+  parseJSON = withObject "Category" \v -> do
+    categoryId <- v .: "category_id"
+    name <- v .: "name"
+    parentCategory <-
+      v .: "parent_category" >>= \case
+        Bool False -> return Nothing
+        x -> Just <$> parseJSON x <?> Key "name"
+    return (Category' categoryId name parentCategory)
+
+data Category = Category
+  { categoryId :: Int,
+    name :: String,
+    parentCategory :: Maybe Category
+  }
+  deriving (Eq, Ord, Read, Show, Generic)
+
+-- | Stitch a list of @Category'@ together to form a list of
+-- @Category@.  Each @parentCategory@ becomes a reference to some
+-- other category in the returned list.
+stitchCategories :: [Category'] -> [Category]
+stitchCategories cs = result
+ where
+  result =
+    map
+      ( \c ->
+          Category
+            { categoryId = categoryId (c :: Category'),
+              name = name (c :: Category'),
+              -- TODO What if the parent category isn't present?
+              -- Instead of using `fromJust`, think about how to deal
+              -- with that case.
+              parentCategory =
+                parentCategory (c :: Category') <&> \id ->
+                  fromJust (find (\c' -> categoryId (c' :: Category) == id) result)
+            }
+      )
+      cs
+
+data Game = Game
+  { id :: Int,
+    name :: String,
+    forumUrl :: String,
+    nexusmodsUrl :: String,
+    -- TODO Is this closed?  Should it be an ADT?
+    genre :: String,
+    fileCount :: Int,
+    downloads :: Int,
+    domainName :: String,
+    approvedDate :: Int,
+    fileViews :: Int,
+    authors :: Int,
+    fileEndorsements :: Int,
+    mods :: Int,
+    categories :: [Category]
+  }
+  deriving (Eq, Ord, Read, Show, Generic)
+
+instance FromJSON Game where
+  parseJSON v = genericParseJSON deriveJSONOptions v <&> animate (modifyRField @"categories" stitchCategories)
+
 data Period = Day | Week | Month
   deriving (Eq, Ord, Enum, Bounded, Read, Show, Generic)
 
@@ -75,9 +147,6 @@ instance FromJSON ModUpdate where
     genericParseJSON deriveJSONOptions v <&> animate Indexed.do
       modifyRField @"latestFileUpdate" posixSecondsToUTCTime
       modifyRField @"latestModActivity" posixSecondsToUTCTime
-
--- | A list of mod changelogs.
-type Changelogs = Map String [String]
 
 data PublishedModInfo = PublishedModInfo
   { name :: String,
@@ -207,18 +276,6 @@ instance ToHttpApiData [FileCategory] where
     toText OldVersion = "old_version"
     toText Miscellaneous = "miscellaneous"
 
-data FileUpdate = FileUpdate
-  { oldFileId :: Int,
-    newFileId :: Int,
-    oldFileName :: String,
-    newFileName :: String,
-    -- NOTE Omitted `uploaded_timestamp`.
-    uploadedTime :: UTCTime
-  }
-  deriving (Eq, Ord, Read, Show, Generic)
-
-deriveFromJSON deriveJSONOptions ''FileUpdate
-
 data FileDetails = FileDetails
   { -- NOTE Omitted `id`.  As far as I can tell, this field is always
     -- a two-element array [fileId, 100].
@@ -250,14 +307,6 @@ data FileDetails = FileDetails
 
 deriveFromJSON deriveJSONOptions ''FileDetails
 
-data ModFiles = ModFiles
-  { files :: [FileDetails],
-    fileUpdates :: [FileUpdate]
-  }
-  deriving (Eq, Ord, Read, Show, Generic)
-
-deriveFromJSON deriveJSONOptions ''ModFiles
-
 data MD5Lookup = MD5Lookup
   { mod :: Mod,
     fileDetails :: FileDetails
@@ -266,13 +315,28 @@ data MD5Lookup = MD5Lookup
 
 deriveFromJSON deriveJSONOptions ''MD5Lookup
 
-newtype EndorseVersion = EndorseVersion
-  { version :: Maybe String
+-- | A list of mod changelogs.
+type Changelogs = Map String [String]
+
+data FileUpdate = FileUpdate
+  { oldFileId :: Int,
+    newFileId :: Int,
+    oldFileName :: String,
+    newFileName :: String,
+    -- NOTE Omitted `uploaded_timestamp`.
+    uploadedTime :: UTCTime
   }
   deriving (Eq, Ord, Read, Show, Generic)
 
-instance ToForm EndorseVersion where
-  toForm v = version (v :: EndorseVersion) & fmap (\v -> ("version", [Text.pack v])) & toList & HashMap.fromList & Form
+deriveFromJSON deriveJSONOptions ''FileUpdate
+
+data ModFiles = ModFiles
+  { files :: [FileDetails],
+    fileUpdates :: [FileUpdate]
+  }
+  deriving (Eq, Ord, Read, Show, Generic)
+
+deriveFromJSON deriveJSONOptions ''ModFiles
 
 newtype DownloadExpiry = DownloadExpiry POSIXTime
   deriving (Eq, Ord, Read, Show, Generic)
@@ -293,76 +357,13 @@ instance FromJSON DownloadLink where
       t <- removeRField @"URI" @2
       insertRField' @"uri" t
 
-data Category' = Category'
-  { categoryId :: Int,
-    name :: String,
-    parentCategory :: Maybe Int
+newtype EndorseVersion = EndorseVersion
+  { version :: Maybe String
   }
   deriving (Eq, Ord, Read, Show, Generic)
 
-instance FromJSON Category' where
-  -- The @Category'@ type is internal; it exists only for the purposes
-  -- of converting @[Category']@ into @[Category]@.  Therefore, we use
-  -- the name @"Category"@ here.
-  parseJSON = withObject "Category" \v -> do
-    categoryId <- v .: "category_id"
-    name <- v .: "name"
-    parentCategory <-
-      v .: "parent_category" >>= \case
-        Bool False -> return Nothing
-        x -> Just <$> parseJSON x <?> Key "name"
-    return (Category' categoryId name parentCategory)
-
-data Category = Category
-  { categoryId :: Int,
-    name :: String,
-    parentCategory :: Maybe Category
-  }
-  deriving (Eq, Ord, Read, Show, Generic)
-
--- | Stitch a list of @Category'@ together to form a list of
--- @Category@.  Each @parentCategory@ becomes a reference to some
--- other category in the returned list.
-stitchCategories :: [Category'] -> [Category]
-stitchCategories cs = result
- where
-  result =
-    map
-      ( \c ->
-          Category
-            { categoryId = categoryId (c :: Category'),
-              name = name (c :: Category'),
-              -- TODO What if the parent category isn't present?
-              -- Instead of using `fromJust`, think about how to deal
-              -- with that case.
-              parentCategory =
-                parentCategory (c :: Category') <&> \id ->
-                  fromJust (find (\c' -> categoryId (c' :: Category) == id) result)
-            }
-      )
-      cs
-
-data Game = Game
-  { id :: Int,
-    name :: String,
-    forumUrl :: String,
-    nexusmodsUrl :: String,
-    -- TODO Is this closed?  Should it be an ADT?
-    genre :: String,
-    fileCount :: Int,
-    downloads :: Int,
-    domainName :: String,
-    approvedDate :: Int,
-    fileViews :: Int,
-    authors :: Int,
-    fileEndorsements :: Int,
-    mods :: Int,
-    categories :: [Category]
-  }
-  deriving (Eq, Ord, Read, Show, Generic)
-
-instance FromJSON Game where
-  parseJSON v = genericParseJSON deriveJSONOptions v <&> animate (modifyRField @"categories" stitchCategories)
+instance ToForm EndorseVersion where
+  toForm v = version (v :: EndorseVersion) & fmap (\v -> ("version", [Text.pack v])) & toList & HashMap.fromList & Form
 
 -- | Details about a Nexus Mods user.
 data User = User
@@ -377,14 +378,6 @@ data User = User
 
 deriveFromJSON deriveJSONOptions ''User
 
-data ModRef = ModRef
-  { modId :: Int,
-    domainName :: String
-  }
-  deriving (Eq, Ord, Read, Show, Generic)
-
-deriveFromJSON deriveJSONOptions ''ModRef
-
 data Endorsement = Endorsement
   { modId :: Int,
     domainName :: String,
@@ -394,6 +387,14 @@ data Endorsement = Endorsement
     status :: EndorsementStatus
   }
   deriving (Eq, Ord, Read, Show, Generic)
+
+data ModRef = ModRef
+  { modId :: Int,
+    domainName :: String
+  }
+  deriving (Eq, Ord, Read, Show, Generic)
+
+deriveFromJSON deriveJSONOptions ''ModRef
 
 deriveFromJSON deriveJSONOptions ''Endorsement
 
@@ -446,84 +447,45 @@ data ColourScheme = ColourScheme
 deriveFromJSON deriveJSONOptions ''ColourScheme
 
 type NexusModsAPI =
-  "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "updated.json" :> QueryParam' '[Required] "period" Period :> Header' '[Required] "apikey" String :> Get '[JSON] [ModUpdate]
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "mod_id" Int :> "changelogs.json" :> Header' '[Required] "apikey" String :> Get '[JSON] Changelogs
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "latest_added.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Mod]
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "latest_updated.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Mod]
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "trending.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Mod]
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> Capture "id" String :> Header' '[Required] "apikey" String :> Get '[JSON] Mod
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> "mods" :> "md5_search" :> Capture "md5_hash" String :> Header' '[Required] "apikey" String :> Get '[JSON] [MD5Lookup]
-    :<|> ( "v1"
-            :> "games"
-            :> Capture "game_domain_name" String
-            :> "mods"
-            :> Capture "id" Int
-            :> "endorse.json"
-            :> ReqBody '[FormUrlEncoded] EndorseVersion
-            :> Header' '[Required] "apikey" String
-            :> Post '[JSON] Message
-         )
-    :<|> ( "v1"
-            :> "games"
-            :> Capture "game_domain_name" String
-            :> "mods"
-            :> Capture "id" Int
-            :> "abstain.json"
-            :> ReqBody '[FormUrlEncoded] EndorseVersion
-            :> Header' '[Required] "apikey" String
-            :> Post '[JSON] Message
-         )
-    :<|> ( "v1"
-            :> "games"
-            :> Capture "game_domain_name" String
-            :> "mods"
-            :> Capture "mod_id" Int
-            :> "files.json"
-            :> QueryParam "category" [FileCategory]
-            :> Header' '[Required] "apikey" String
-            :> Get '[JSON] ModFiles
-         )
-    :<|> ( "v1"
-            :> "games"
-            :> Capture "game_domain_name" String
-            :> "mods"
-            :> Capture "mod_id" Int
-            :> "files"
-            :> Capture "file_id" String
-            :> Header' '[Required] "apikey" String
-            :> Get '[JSON] FileDetails
-         )
-    :<|> ( "v1"
-            :> "games"
-            :> Capture "game_domain_name" String
-            :> "mods"
-            :> Capture "mod_id" Int
-            :> "files"
-            :> Capture "id" Int
-            :> "download_link.json"
-            :> QueryParam "key" String
-            :> QueryParam "expires" DownloadExpiry
-            :> Header' '[Required] "apikey" String
-            :> Get '[JSON] [DownloadLink]
-         )
-    :<|> "v1" :> "games.json" :> Header "include_unapproved" Bool :> Header' '[Required] "apikey" String :> Get '[JSON] [Game]
-    :<|> "v1" :> "games" :> Capture "game_domain_name" String :> Header' '[Required] "apikey" String :> Get '[JSON] Game
-    :<|> "v1" :> "users" :> "validate.json" :> Header' '[Required] "apikey" String :> Get '[JSON] User
-    :<|> "v1" :> "user" :> "tracked_mods.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [ModRef]
-    :<|> ( "v1" :> "user" :> "tracked_mods.json"
-            :> QueryParam' '[Required] "domain_name" String
-            :> QueryParam' '[Required] "mod_id" Int
-            :> Header' '[Required] "apikey" String
-            :> UVerb 'POST '[JSON] '[WithStatus 200 Message, WithStatus 201 Message]
-         )
-    :<|> ( "v1" :> "user" :> "tracked_mods.json"
-            :> QueryParam' '[Required] "domain_name" String
-            :> QueryParam' '[Required] "mod_id" Int
-            :> Header' '[Required] "apikey" String
-            :> UVerb 'DELETE '[JSON] [WithStatus 200 Message, WithStatus 404 Message]
-         )
-    :<|> "v1" :> "user" :> "endorsements.json" :> Header' '[Required] "apikey" String :> Get '[JSON] [Endorsement]
-    :<|> "v1" :> "colourschemes" :> Header' '[Required] "apikey" String :> Get '[JSON] [ColourScheme]
+  Header' '[Required] "apikey" String :> "v1"
+    :> ( "games.json" :> Header "include_unapproved" Bool :> Get '[JSON] [Game]
+          :<|> "games"
+          :> Capture "game_domain_name" String
+          :> ( Get '[JSON] Game
+                :<|> "mods"
+                  :> ( "updated.json" :> QueryParam' '[Required] "period" Period :> Get '[JSON] [ModUpdate]
+                        :<|> "latest_added.json" :> Get '[JSON] [Mod]
+                        :<|> "latest_updated.json" :> Get '[JSON] [Mod]
+                        :<|> "trending.json" :> Get '[JSON] [Mod]
+                        :<|> "md5_search" :> Capture "md5_hash" String :> Get '[JSON] [MD5Lookup]
+                        :<|> Capture "id" String :> Get '[JSON] Mod
+                        :<|> Capture "mod_id" Int
+                          :> ( "changelogs.json" :> Get '[JSON] Changelogs
+                                :<|> "files.json" :> QueryParam "category" [FileCategory] :> Get '[JSON] ModFiles
+                                :<|> "files"
+                                  :> ( Capture "file_id" String :> Get '[JSON] FileDetails
+                                        :<|> Capture "id" Int :> "download_link.json" :> QueryParam "key" String :> QueryParam "expires" DownloadExpiry :> Get '[JSON] [DownloadLink]
+                                     )
+                                :<|> ReqBody '[FormUrlEncoded] EndorseVersion
+                                  :> ( "endorse.json" :> Post '[JSON] Message
+                                        :<|> "abstain.json" :> Post '[JSON] Message
+                                     )
+                             )
+                     )
+             )
+          :<|> "user"
+          :> ( "validate.json" :> Get '[JSON] User
+                :<|> ("endorsements.json" :> Get '[JSON] [Endorsement])
+                :<|> "tracked_mods.json"
+                :> ( Get '[JSON] [ModRef]
+                      :<|> QueryParam' '[Required] "domain_name" String :> QueryParam' '[Required] "mod_id" Int
+                        :> ( UVerb 'POST '[JSON] '[WithStatus 200 Message, WithStatus 201 Message]
+                              :<|> UVerb 'DELETE '[JSON] [WithStatus 200 Message, WithStatus 404 Message]
+                           )
+                   )
+             )
+          :<|> ("colourschemes" :> Get '[JSON] [ColourScheme])
+       )
 
 api :: Proxy NexusModsAPI
 api = Proxy
