@@ -4,6 +4,10 @@ version:            0.1.0.0
 author:             Nicholas Coltharp
 maintainer:         coltharp@pdx.edu
 
+source-repository head
+    type:     git
+    location: https://github.com/nosewings/nexus-mods.git
+
 library
     exposed-modules:    NexusMods
                       , NexusMods.Internal
