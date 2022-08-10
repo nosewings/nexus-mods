@@ -58,15 +58,12 @@ import Servant.Client
 -- | Get all games.
 getGames :: String -> Maybe Bool -> ClientM [Game]
 
--- | Internal version of @getGame@.  This is necessary because the API
--- path is @/v1/games/{game_domain_name}.json@, but Servant does not
--- (as far as I know) give us the ability to modify a captured path
--- component, so we have to add the @.json@ on ourselves.
-getGame' :: String -> String -> ClientM Game
+-- | Internal version of @getGame@.
+getGame' :: String -> JSONExt String -> ClientM Game
 
 -- | Get a specific game.
 getGame :: String -> String -> ClientM Game
-getGame apikey gameDomainName = getGame' apikey (gameDomainName ++ ".json")
+getGame apikey gameDomainName = getGame' apikey (JSONExt gameDomainName)
 
 -- | Get a list of mod updates within a given time period.
 getUpdates :: String -> String -> Period -> ClientM [ModUpdate]
@@ -81,18 +78,18 @@ getLatestUpdated :: String -> String -> ClientM [Mod]
 getTrending :: String -> String -> ClientM [Mod]
 
 -- | Internal version of getModByHash.
-getModByHash' :: String -> String -> String -> ClientM [MD5Lookup]
+getModByHash' :: String -> String -> JSONExt String -> ClientM [MD5Lookup]
 
 -- | Given an MD5 hash, get all mods that have a file with that hash.
 getModByHash :: String -> String -> String -> ClientM [MD5Lookup]
-getModByHash apikey gameDomainName md5Hash = getModByHash' apikey gameDomainName (md5Hash ++ ".json")
+getModByHash apikey gameDomainName md5Hash = getModByHash' apikey gameDomainName (JSONExt md5Hash)
 
 -- | Internal version of @getMod@.
-getMod' :: String -> String -> String -> ClientM Mod
+getMod' :: String -> String -> JSONExt Int -> ClientM Mod
 
 -- | Get a mod by game and ID.
 getMod :: String -> String -> Int -> ClientM Mod
-getMod apikey gameDomainName id = getMod' apikey gameDomainName (show id ++ ".json")
+getMod apikey gameDomainName id = getMod' apikey gameDomainName (JSONExt id)
 
 -- | Get a mod's list of changelogs.
 getChangelogs :: String -> String -> Int -> ClientM Changelogs
@@ -106,11 +103,11 @@ getModFiles apikey gameDomainName md5Hash [] = getModFiles' apikey gameDomainNam
 getModFiles apikey gameDomainName md5Hash fileCategories = getModFiles' apikey gameDomainName md5Hash (Just fileCategories)
 
 -- | Internal version of @getFile@.
-getFile' :: String -> String -> Int -> String -> ClientM FileDetails
+getFile' :: String -> String -> Int -> JSONExt Int -> ClientM FileDetails
 
 -- | Get a specific file.
 getFile :: String -> String -> Int -> Int -> ClientM FileDetails
-getFile apikey gameDomainName modId fileId = getFile' apikey gameDomainName modId (show fileId ++ ".json")
+getFile apikey gameDomainName modId fileId = getFile' apikey gameDomainName modId (JSONExt fileId)
 
 -- | Internal version of @getDownloadLink@.
 getDownloadLink' :: String -> String -> Int -> Int -> Maybe String -> Maybe DownloadExpiry -> ClientM [DownloadLink]

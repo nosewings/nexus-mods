@@ -50,6 +50,7 @@ library
                       , TemplateHaskell
                       , TypeApplications
                       , TypeOperators
+                      , ViewPatterns
     ghc-options:        -Weverything
                         -Wno-all-missed-specialisations
                         -Wno-implicit-prelude

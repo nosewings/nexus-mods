@@ -1,6 +1,7 @@
 module NexusMods.Internal (
   Category (..),
   Game (..),
+  JSONExt (..),
   Period (..),
   UTCTime,
   ModUpdate (..),
@@ -126,6 +127,17 @@ data Game = Game
 
 instance FromJSON Game where
   parseJSON v = genericParseJSON deriveJSONOptions v <&> animate (modifyRField @"categories" stitchCategories)
+
+-- | Stupid wrapper for parsing an URL piece that needs to have
+-- @.json@ at the end.
+newtype JSONExt a = JSONExt a
+
+instance ToHttpApiData a => ToHttpApiData (JSONExt a) where
+  toUrlPiece (JSONExt x) = toUrlPiece x <> ".json"
+
+instance FromHttpApiData a => FromHttpApiData (JSONExt a) where
+  parseUrlPiece (Text.stripSuffix ".json" -> Just s) = parseUrlPiece s
+  parseUrlPiece s = Left ("invalid game_domain_name (must end in \".json\"): \"" <> s <> "\"")
 
 data Period = Day | Week | Month
   deriving (Eq, Ord, Enum, Bounded, Read, Show, Generic)
@@ -388,6 +400,8 @@ data Endorsement = Endorsement
   }
   deriving (Eq, Ord, Read, Show, Generic)
 
+deriveFromJSON deriveJSONOptions ''Endorsement
+
 data ModRef = ModRef
   { modId :: Int,
     domainName :: String
@@ -395,8 +409,6 @@ data ModRef = ModRef
   deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''ModRef
-
-deriveFromJSON deriveJSONOptions ''Endorsement
 
 newtype Message = Message
   { message :: String
@@ -448,22 +460,23 @@ deriveFromJSON deriveJSONOptions ''ColourScheme
 
 type NexusModsAPI =
   Header' '[Required] "apikey" String :> "v1"
-    :> ( "games.json" :> Header "include_unapproved" Bool :> Get '[JSON] [Game]
-          :<|> "games"
-          :> Capture "game_domain_name" String
-          :> ( Get '[JSON] Game
-                :<|> "mods"
+    :> ( "games.json" :> Header "include_unapproved" Bool
+          :> Get '[JSON] [Game]
+            :<|> "games"
+          :> ( Capture "game_domain_name" (JSONExt String) :> Get '[JSON] Game
+                :<|> Capture "game_domain_name" String
+                  :> "mods"
                   :> ( "updated.json" :> QueryParam' '[Required] "period" Period :> Get '[JSON] [ModUpdate]
                         :<|> "latest_added.json" :> Get '[JSON] [Mod]
                         :<|> "latest_updated.json" :> Get '[JSON] [Mod]
                         :<|> "trending.json" :> Get '[JSON] [Mod]
-                        :<|> "md5_search" :> Capture "md5_hash" String :> Get '[JSON] [MD5Lookup]
-                        :<|> Capture "id" String :> Get '[JSON] Mod
+                        :<|> "md5_search" :> Capture "md5_hash" (JSONExt String) :> Get '[JSON] [MD5Lookup]
+                        :<|> Capture "id" (JSONExt Int) :> Get '[JSON] Mod
                         :<|> Capture "mod_id" Int
                           :> ( "changelogs.json" :> Get '[JSON] Changelogs
                                 :<|> "files.json" :> QueryParam "category" [FileCategory] :> Get '[JSON] ModFiles
                                 :<|> "files"
-                                  :> ( Capture "file_id" String :> Get '[JSON] FileDetails
+                                  :> ( Capture "file_id" (JSONExt Int) :> Get '[JSON] FileDetails
                                         :<|> Capture "id" Int :> "download_link.json" :> QueryParam "key" String :> QueryParam "expires" DownloadExpiry :> Get '[JSON] [DownloadLink]
                                      )
                                 :<|> ReqBody '[FormUrlEncoded] EndorseVersion
@@ -473,7 +486,7 @@ type NexusModsAPI =
                              )
                      )
              )
-          :<|> "user"
+            :<|> "user"
           :> ( "validate.json" :> Get '[JSON] User
                 :<|> ("endorsements.json" :> Get '[JSON] [Endorsement])
                 :<|> "tracked_mods.json"
@@ -484,7 +497,7 @@ type NexusModsAPI =
                            )
                    )
              )
-          :<|> ("colourschemes" :> Get '[JSON] [ColourScheme])
+            :<|> ("colourschemes" :> Get '[JSON] [ColourScheme])
        )
 
 api :: Proxy NexusModsAPI
