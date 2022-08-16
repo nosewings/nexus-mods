@@ -1,5 +1,5 @@
 {
-  description = "A very basic flake";
+  description = "Flake for nexus-mods";
   inputs.haskellNix.url = "github:input-output-hk/haskell.nix";
   inputs.nixpkgs.follows = "haskellNix/nixpkgs-unstable";
   inputs.flake-utils.url = "github:numtide/flake-utils";
