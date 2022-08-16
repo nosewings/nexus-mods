@@ -459,45 +459,48 @@ data ColourScheme = ColourScheme
 deriveFromJSON deriveJSONOptions ''ColourScheme
 
 type NexusModsAPI =
-  Header' '[Required] "apikey" String :> "v1"
-    :> ( "games.json" :> Header "include_unapproved" Bool
+  Header' '[Required] "apikey" String
+    :> "v1"
+    :> ( "games.json"
+          :> Header "include_unapproved" Bool
           :> Get '[JSON] [Game]
-            :<|> "games"
-          :> ( Capture "game_domain_name" (JSONExt String) :> Get '[JSON] Game
-                :<|> Capture "game_domain_name" String
-                  :> "mods"
-                  :> ( "updated.json" :> QueryParam' '[Required] "period" Period :> Get '[JSON] [ModUpdate]
-                        :<|> "latest_added.json" :> Get '[JSON] [Mod]
-                        :<|> "latest_updated.json" :> Get '[JSON] [Mod]
-                        :<|> "trending.json" :> Get '[JSON] [Mod]
-                        :<|> "md5_search" :> Capture "md5_hash" (JSONExt String) :> Get '[JSON] [MD5Lookup]
-                        :<|> Capture "id" (JSONExt Int) :> Get '[JSON] Mod
-                        :<|> Capture "mod_id" Int
-                          :> ( "changelogs.json" :> Get '[JSON] Changelogs
-                                :<|> "files.json" :> QueryParam "category" [FileCategory] :> Get '[JSON] ModFiles
-                                :<|> "files"
-                                  :> ( Capture "file_id" (JSONExt Int) :> Get '[JSON] FileDetails
-                                        :<|> Capture "id" Int :> "download_link.json" :> QueryParam "key" String :> QueryParam "expires" DownloadExpiry :> Get '[JSON] [DownloadLink]
-                                     )
-                                :<|> ReqBody '[FormUrlEncoded] EndorseVersion
-                                  :> ( "endorse.json" :> Post '[JSON] Message
-                                        :<|> "abstain.json" :> Post '[JSON] Message
-                                     )
-                             )
-                     )
-             )
-            :<|> "user"
-          :> ( "validate.json" :> Get '[JSON] User
-                :<|> ("endorsements.json" :> Get '[JSON] [Endorsement])
-                :<|> "tracked_mods.json"
-                :> ( Get '[JSON] [ModRef]
-                      :<|> QueryParam' '[Required] "domain_name" String :> QueryParam' '[Required] "mod_id" Int
-                        :> ( UVerb 'POST '[JSON] '[WithStatus 200 Message, WithStatus 201 Message]
-                              :<|> UVerb 'DELETE '[JSON] [WithStatus 200 Message, WithStatus 404 Message]
-                           )
-                   )
-             )
-            :<|> ("colourschemes" :> Get '[JSON] [ColourScheme])
+          :<|> "games"
+            :> ( Capture "game_domain_name" (JSONExt String) :> Get '[JSON] Game
+                  :<|> Capture "game_domain_name" String
+                    :> "mods"
+                    :> ( "updated.json" :> QueryParam' '[Required] "period" Period :> Get '[JSON] [ModUpdate]
+                          :<|> "latest_added.json" :> Get '[JSON] [Mod]
+                          :<|> "latest_updated.json" :> Get '[JSON] [Mod]
+                          :<|> "trending.json" :> Get '[JSON] [Mod]
+                          :<|> "md5_search" :> Capture "md5_hash" (JSONExt String) :> Get '[JSON] [MD5Lookup]
+                          :<|> Capture "id" (JSONExt Int) :> Get '[JSON] Mod
+                          :<|> Capture "mod_id" Int
+                            :> ( "changelogs.json" :> Get '[JSON] Changelogs
+                                  :<|> "files.json" :> QueryParam "category" [FileCategory] :> Get '[JSON] ModFiles
+                                  :<|> "files"
+                                    :> ( Capture "file_id" (JSONExt Int) :> Get '[JSON] FileDetails
+                                          :<|> Capture "id" Int :> "download_link.json" :> QueryParam "key" String :> QueryParam "expires" DownloadExpiry :> Get '[JSON] [DownloadLink]
+                                       )
+                                  :<|> ReqBody '[FormUrlEncoded] EndorseVersion
+                                    :> ( "endorse.json" :> Post '[JSON] Message
+                                          :<|> "abstain.json" :> Post '[JSON] Message
+                                       )
+                               )
+                       )
+               )
+          :<|> "user"
+            :> ( "validate.json" :> Get '[JSON] User
+                  :<|> ("endorsements.json" :> Get '[JSON] [Endorsement])
+                  :<|> "tracked_mods.json"
+                    :> ( Get '[JSON] [ModRef]
+                          :<|> QueryParam' '[Required] "domain_name" String
+                            :> QueryParam' '[Required] "mod_id" Int
+                            :> ( UVerb 'POST '[JSON] '[WithStatus 200 Message, WithStatus 201 Message]
+                                  :<|> UVerb 'DELETE '[JSON] [WithStatus 200 Message, WithStatus 404 Message]
+                               )
+                       )
+               )
+          :<|> ("colourschemes" :> Get '[JSON] [ColourScheme])
        )
 
 api :: Proxy NexusModsAPI
