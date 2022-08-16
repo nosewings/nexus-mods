@@ -11,9 +11,9 @@ source-repository head
 library
     exposed-modules:    NexusMods
                       , NexusMods.Internal
-    other-modules:      NexusMods.Indexed
-                      , NexusMods.TH
-                      , NexusMods.Surgery
+                      , NexusMods.Internal.Indexed
+                      , NexusMods.Internal.TH
+                      , NexusMods.Internal.Surgery
     build-depends:      base >=4.15.1.0
                       , aeson >=1.5.5.1
                       , containers >=0.6.4.1

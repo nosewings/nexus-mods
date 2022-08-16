@@ -47,9 +47,9 @@ import Data.Time
 import Data.Time.Clock.POSIX
 import Data.Word
 import GHC.Generics
-import NexusMods.Indexed qualified as Indexed
-import NexusMods.Surgery
-import NexusMods.TH
+import NexusMods.Internal.Indexed qualified as Indexed
+import NexusMods.Internal.Surgery
+import NexusMods.Internal.TH
 import Servant.API
 import Text.ParserCombinators.ReadP
 import Web.FormUrlEncoded

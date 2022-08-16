@@ -1,4 +1,4 @@
-module NexusMods.TH (
+module NexusMods.Internal.TH (
   deriveJSONOptions,
 ) where
 

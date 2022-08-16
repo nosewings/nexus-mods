@@ -1,4 +1,4 @@
-module NexusMods.Indexed (
+module NexusMods.Internal.Indexed (
   fmap,
   return,
   (<*>),
