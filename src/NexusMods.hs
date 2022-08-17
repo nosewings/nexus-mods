@@ -47,6 +47,7 @@ module NexusMods (
 ) where
 
 import Data.Functor
+import Data.List.NonEmpty
 import Data.SOP.NS
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
@@ -95,12 +96,12 @@ getMod apikey gameDomainName id = getMod' apikey gameDomainName (JSONExt id)
 getChangelogs :: String -> String -> Int -> ClientM Changelogs
 
 -- | Internal version of @getModFiles@.
-getModFiles' :: String -> String -> Int -> Maybe [FileCategory] -> ClientM ModFiles
+getModFiles' :: String -> String -> Int -> Maybe FileCategories -> ClientM ModFiles
 
 -- | Get a mod's list of files.
 getModFiles :: String -> String -> Int -> [FileCategory] -> ClientM ModFiles
 getModFiles apikey gameDomainName md5Hash [] = getModFiles' apikey gameDomainName md5Hash Nothing
-getModFiles apikey gameDomainName md5Hash fileCategories = getModFiles' apikey gameDomainName md5Hash (Just fileCategories)
+getModFiles apikey gameDomainName md5Hash (c : cs) = getModFiles' apikey gameDomainName md5Hash (Just (FileCategories (c :| cs)))
 
 -- | Internal version of @getFile@.
 getFile' :: String -> String -> Int -> JSONExt Int -> ClientM FileDetails

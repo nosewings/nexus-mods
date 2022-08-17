@@ -12,6 +12,7 @@ module NexusMods.Internal (
   ModEndorsement (..),
   Mod (..),
   FileCategory (..),
+  FileCategories (..),
   FileDetails (..),
   MD5Lookup (..),
   Changelogs,
@@ -39,6 +40,7 @@ import Data.Foldable
 import Data.Function
 import Data.Functor
 import Data.HashMap.Strict qualified as HashMap
+import Data.List.NonEmpty (NonEmpty)
 import Data.Map (Map)
 import Data.Maybe
 import Data.Text (Text)
@@ -277,10 +279,13 @@ instance FromJSON FileCategory where
     "miscellaneous" -> return Miscellaneous
     _ -> fail ("expected a file category; got " ++ Text.unpack t)
 
+newtype FileCategories = FileCategories (NonEmpty FileCategory)
+  deriving (Eq, Ord, Read, Show, Generic)
+
 -- XXX This requires FlexibleInstances, and I think it's kind of
 -- suspect.  Might be better to use an internal newtype wrapper.
-instance ToHttpApiData [FileCategory] where
-  toQueryParam = Text.intercalate "," . map toText
+instance ToHttpApiData FileCategories where
+  toQueryParam (FileCategories cs) = Text.intercalate "," . map toText . toList $ cs
    where
     toText Main = "main"
     toText Update = "update"
@@ -476,7 +481,7 @@ type NexusModsAPI =
                           :<|> Capture "id" (JSONExt Int) :> Get '[JSON] Mod
                           :<|> Capture "mod_id" Int
                             :> ( "changelogs.json" :> Get '[JSON] Changelogs
-                                  :<|> "files.json" :> QueryParam "category" [FileCategory] :> Get '[JSON] ModFiles
+                                  :<|> "files.json" :> QueryParam "category" FileCategories :> Get '[JSON] ModFiles
                                   :<|> "files"
                                     :> ( Capture "file_id" (JSONExt Int) :> Get '[JSON] FileDetails
                                           :<|> Capture "id" Int :> "download_link.json" :> QueryParam "key" String :> QueryParam "expires" DownloadExpiry :> Get '[JSON] [DownloadLink]
