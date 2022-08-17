@@ -14,6 +14,7 @@ module NexusMods.Internal (
   FileCategory (..),
   FileCategories (..),
   FileDetails (..),
+  MD5String,
   MD5Lookup (..),
   Changelogs,
   FileUpdate (..),
@@ -32,6 +33,7 @@ module NexusMods.Internal (
   api,
 ) where
 
+import NexusMods.MD5String
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Char
@@ -477,7 +479,7 @@ type NexusModsAPI =
                           :<|> "latest_added.json" :> Get '[JSON] [Mod]
                           :<|> "latest_updated.json" :> Get '[JSON] [Mod]
                           :<|> "trending.json" :> Get '[JSON] [Mod]
-                          :<|> "md5_search" :> Capture "md5_hash" (JSONExt String) :> Get '[JSON] [MD5Lookup]
+                          :<|> "md5_search" :> Capture "md5_hash" (JSONExt MD5String) :> Get '[JSON] [MD5Lookup]
                           :<|> Capture "id" (JSONExt Int) :> Get '[JSON] Mod
                           :<|> Capture "mod_id" Int
                             :> ( "changelogs.json" :> Get '[JSON] Changelogs

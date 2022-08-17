@@ -79,10 +79,10 @@ getLatestUpdated :: String -> String -> ClientM [Mod]
 getTrending :: String -> String -> ClientM [Mod]
 
 -- | Internal version of getModByHash.
-getModByHash' :: String -> String -> JSONExt String -> ClientM [MD5Lookup]
+getModByHash' :: String -> String -> JSONExt MD5String -> ClientM [MD5Lookup]
 
 -- | Given an MD5 hash, get all mods that have a file with that hash.
-getModByHash :: String -> String -> String -> ClientM [MD5Lookup]
+getModByHash :: String -> String -> MD5String -> ClientM [MD5Lookup]
 getModByHash apikey gameDomainName md5Hash = getModByHash' apikey gameDomainName (JSONExt md5Hash)
 
 -- | Internal version of @getMod@.

@@ -10,6 +10,7 @@ source-repository head
 
 library
     exposed-modules:    NexusMods
+                      , NexusMods.MD5String
                       , NexusMods.Internal
                       , NexusMods.Internal.Indexed
                       , NexusMods.Internal.TH
