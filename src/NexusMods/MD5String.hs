@@ -4,10 +4,23 @@ module NexusMods.MD5String (
   toString,
 ) where
 
+import Control.Applicative
+import Control.Category ((>>>))
 import Data.Char
 import Servant.API
+import Text.Read
 
 newtype MD5String = MD5String String
+  deriving (Eq, Ord, Show)
+
+-- No `Generic` instance
+
+instance Read MD5String where
+  readPrec = go >>= (fromString >>> maybe empty return)
+   where
+    go = parens . prec 10 $ do
+      Ident "MD5String" <- lexP
+      readPrec
 
 instance ToHttpApiData MD5String where
   toUrlPiece = toUrlPiece . toString
