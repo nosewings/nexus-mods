@@ -33,7 +33,6 @@ module NexusMods.Internal (
   api,
 ) where
 
-import NexusMods.MD5String
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Char
@@ -54,6 +53,7 @@ import GHC.Generics
 import NexusMods.Internal.Indexed qualified as Indexed
 import NexusMods.Internal.Surgery
 import NexusMods.Internal.TH
+import NexusMods.MD5String
 import Servant.API
 import Text.ParserCombinators.ReadP
 import Web.FormUrlEncoded
@@ -418,8 +418,8 @@ data ModRef = ModRef
 deriveFromJSON deriveJSONOptions ''ModRef
 
 data MessageWithStatus = MessageWithStatus
-  { message :: String
-  , status :: String
+  { message :: String,
+    status :: String
   }
   deriving (Eq, Ord, Read, Show, Generic)
 
