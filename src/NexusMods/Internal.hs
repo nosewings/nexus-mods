@@ -22,7 +22,7 @@ module NexusMods.Internal (
   POSIXTime,
   DownloadExpiry (..),
   DownloadLink (..),
-  Message (..),
+  MessageWithStatus (..),
   EndorseVersion (..),
   User (..),
   Endorsement (..),
@@ -417,12 +417,13 @@ data ModRef = ModRef
 
 deriveFromJSON deriveJSONOptions ''ModRef
 
-newtype Message = Message
+data MessageWithStatus = MessageWithStatus
   { message :: String
+  , status :: String
   }
   deriving (Eq, Ord, Read, Show, Generic)
 
-deriveFromJSON deriveJSONOptions ''Message
+deriveFromJSON deriveJSONOptions ''MessageWithStatus
 
 data Colour = Colour
   { red :: Word8,
@@ -489,8 +490,8 @@ type NexusModsAPI =
                                           :<|> Capture "id" Int :> "download_link.json" :> QueryParam "key" String :> QueryParam "expires" DownloadExpiry :> Get '[JSON] [DownloadLink]
                                        )
                                   :<|> ReqBody '[FormUrlEncoded] EndorseVersion
-                                    :> ( "endorse.json" :> Post '[JSON] Message
-                                          :<|> "abstain.json" :> Post '[JSON] Message
+                                    :> ( "endorse.json" :> Post '[JSON] MessageWithStatus
+                                          :<|> "abstain.json" :> Post '[JSON] MessageWithStatus
                                        )
                                )
                        )
@@ -502,8 +503,8 @@ type NexusModsAPI =
                     :> ( Get '[JSON] [ModRef]
                           :<|> QueryParam' '[Required] "domain_name" String
                             :> QueryParam' '[Required] "mod_id" Int
-                            :> ( UVerb 'POST '[JSON] '[WithStatus 200 Message, WithStatus 201 Message]
-                                  :<|> UVerb 'DELETE '[JSON] [WithStatus 200 Message, WithStatus 404 Message]
+                            :> ( UVerb 'POST '[JSON] '[WithStatus 200 MessageWithStatus, WithStatus 201 MessageWithStatus]
+                                  :<|> UVerb 'DELETE '[JSON] '[WithStatus 200 MessageWithStatus, WithStatus 404 MessageWithStatus]
                                )
                        )
                )

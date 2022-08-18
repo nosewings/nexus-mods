@@ -121,17 +121,17 @@ getDownloadLink apikey gameDomainName modId id keyExpires = getDownloadLink' api
   expires = DownloadExpiry . snd <$> keyExpires
 
 -- | Internal version of @endorse@.
-endorse' :: String -> String -> Int -> EndorseVersion -> ClientM Message
+endorse' :: String -> String -> Int -> EndorseVersion -> ClientM MessageWithStatus
 
 -- | Endorse a mod.
-endorse :: String -> String -> Int -> Maybe String -> ClientM Message
+endorse :: String -> String -> Int -> Maybe String -> ClientM MessageWithStatus
 endorse apikey gameDomainName id version = endorse' apikey gameDomainName id (EndorseVersion version)
 
 -- | Internal version of @abstain@..
-abstain' :: String -> String -> Int -> EndorseVersion -> ClientM Message
+abstain' :: String -> String -> Int -> EndorseVersion -> ClientM MessageWithStatus
 
 -- | Stop endorsing a mod.
-abstain :: String -> String -> Int -> Maybe String -> ClientM Message
+abstain :: String -> String -> Int -> Maybe String -> ClientM MessageWithStatus
 abstain apikey gameDomainName id version = abstain' apikey gameDomainName id (EndorseVersion version)
 
 -- | Validate a user's API key and return their info.
@@ -144,7 +144,7 @@ getEndorsements :: String -> ClientM [Endorsement]
 getTrackedMods :: String -> ClientM [ModRef]
 
 -- | Internal version of @trackMod@.
-trackMod' :: String -> String -> Int -> ClientM (Union '[WithStatus 200 Message, WithStatus 201 Message])
+trackMod' :: String -> String -> Int -> ClientM (Union '[WithStatus 200 MessageWithStatus, WithStatus 201 MessageWithStatus])
 
 -- | Start tracking a mod.  Returns @True@ if the user was not already
 -- tracking the mod.
@@ -155,7 +155,7 @@ trackMod apikey domainName modId =
     _ -> True
 
 -- | Internal version of @untrackMod@.
-untrackMod' :: String -> String -> Int -> ClientM (Union '[WithStatus 200 Message, WithStatus 404 Message])
+untrackMod' :: String -> String -> Int -> ClientM (Union '[WithStatus 200 MessageWithStatus, WithStatus 404 MessageWithStatus])
 
 -- | Stop tracking a mod.  Returns @True@ if the user was previously
 -- tracking the mod.
