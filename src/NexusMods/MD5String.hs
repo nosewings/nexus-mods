@@ -27,7 +27,7 @@ instance ToHttpApiData MD5String where
 
 lengthIs :: Int -> [a] -> Bool
 lengthIs 0 [] = True
-lengthIs n (_ : xs) = lengthIs (n - 1) xs
+lengthIs n (_ : xs) | n > 0 = lengthIs (n - 1) xs
 lengthIs _ _ = False
 
 fromString :: String -> Maybe MD5String
