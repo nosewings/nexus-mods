@@ -175,19 +175,19 @@ getGames
   :<|> getLatestAdded
   :<|> getLatestUpdated
   :<|> getTrending
-  :<|> getModByHash'
   :<|> getMod'
+  :<|> getModByHash'
+  :<|> endorse'
+  :<|> abstain'
   :<|> getChangelogs
   :<|> getModFiles'
   :<|> getFile'
   :<|> getDownloadLink'
-  :<|> endorse'
-  :<|> abstain'
   :<|> validate
-  :<|> getEndorsements
   :<|> getTrackedMods
   :<|> trackMod'
   :<|> untrackMod'
+  :<|> getEndorsements
   :<|> getColourSchemes =
     client (flatten api)
 
