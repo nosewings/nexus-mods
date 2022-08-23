@@ -144,7 +144,7 @@ getEndorsements :: String -> ClientM [Endorsement]
 getTrackedMods :: String -> ClientM [ModRef]
 
 -- | Internal version of @trackMod@.
-trackMod' :: String -> String -> Int -> ClientM (Union '[WithStatus 200 MessageWithStatus, WithStatus 201 MessageWithStatus])
+trackMod' :: String -> String -> Int -> ClientM (Union '[WithStatus 200 Message, WithStatus 201 Message])
 
 -- | Start tracking a mod.  Returns @True@ if the user was not already
 -- tracking the mod.
@@ -155,7 +155,7 @@ trackMod apikey domainName modId =
     _ -> True
 
 -- | Internal version of @untrackMod@.
-untrackMod' :: String -> String -> Int -> ClientM (Union '[WithStatus 200 MessageWithStatus, WithStatus 404 MessageWithStatus])
+untrackMod' :: String -> String -> Int -> ClientM (Union '[WithStatus 200 Message, WithStatus 404 Message])
 
 -- | Stop tracking a mod.  Returns @True@ if the user was previously
 -- tracking the mod.
