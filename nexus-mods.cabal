@@ -49,6 +49,7 @@ library
                       , ScopedTypeVariables
                       , TemplateHaskell
                       , TypeApplications
+                      , TypeFamilies
                       , TypeOperators
                       , ViewPatterns
     ghc-options:        -Weverything

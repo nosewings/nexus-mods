@@ -24,6 +24,10 @@ module NexusMods.Internal (
   DownloadLink (..),
   Message (..),
   MessageWithStatus (..),
+  NowTracking(..),
+  AlreadyTracking(..),
+  NoLongerTracking(..),
+  NotTracking(..),
   EndorseVersion (..),
   User (..),
   Endorsement (..),
@@ -433,6 +437,38 @@ data MessageWithStatus = MessageWithStatus
 
 deriveFromJSON deriveJSONOptions ''MessageWithStatus
 
+newtype NowTracking = NowTracking Message
+  deriving (Eq, Ord, Read, Show, Generic)
+
+deriveFromJSON deriveJSONOptions ''NowTracking
+
+instance HasStatus NowTracking where
+  type StatusOf NowTracking = 201
+
+newtype AlreadyTracking = AlreadyTracking Message
+  deriving (Eq, Ord, Read, Show, Generic)
+
+deriveFromJSON deriveJSONOptions ''AlreadyTracking
+
+instance HasStatus AlreadyTracking where
+  type StatusOf AlreadyTracking = 200
+
+newtype NoLongerTracking = NoLongerTracking Message
+  deriving (Eq, Ord, Read, Show, Generic)
+
+deriveFromJSON deriveJSONOptions ''NoLongerTracking
+
+instance HasStatus NoLongerTracking where
+  type StatusOf NoLongerTracking = 200
+
+newtype NotTracking = NotTracking Message
+  deriving (Eq, Ord, Read, Show, Generic)
+
+deriveFromJSON deriveJSONOptions ''NotTracking
+
+instance HasStatus NotTracking where
+  type StatusOf NotTracking = 404
+
 data Colour = Colour
   { red :: Word8,
     blue :: Word8,
@@ -511,8 +547,8 @@ type NexusModsAPI =
                   :> ( Get '[JSON] [ModRef]
                         :<|> QueryParam' '[Required] "domain_name" String
                           :> QueryParam' '[Required] "mod_id" Int
-                          :> ( UVerb 'POST '[JSON] '[WithStatus 200 Message, WithStatus 201 Message]
-                                :<|> UVerb 'DELETE '[JSON] '[WithStatus 200 Message, WithStatus 404 Message]
+                          :> ( UVerb 'POST '[JSON] '[AlreadyTracking, NowTracking] -- '[AlreadyTracking, NowTracking]
+                                :<|> UVerb 'DELETE '[JSON] '[NoLongerTracking, NotTracking]
                              )
                      )
                   :<|> "endorsements.json" :> Get '[JSON] [Endorsement]
