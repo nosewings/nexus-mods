@@ -547,7 +547,7 @@ type NexusModsAPI =
                   :> ( Get '[JSON] [ModRef]
                         :<|> QueryParam' '[Required] "domain_name" String
                           :> QueryParam' '[Required] "mod_id" Int
-                          :> ( UVerb 'POST '[JSON] '[AlreadyTracking, NowTracking] -- '[AlreadyTracking, NowTracking]
+                          :> ( UVerb 'POST '[JSON] '[NowTracking, AlreadyTracking] -- '[AlreadyTracking, NowTracking]
                                 :<|> UVerb 'DELETE '[JSON] '[NoLongerTracking, NotTracking]
                              )
                      )

@@ -144,15 +144,15 @@ getEndorsements :: String -> ClientM [Endorsement]
 getTrackedMods :: String -> ClientM [ModRef]
 
 -- | Internal version of @trackMod@.
-trackMod' :: String -> String -> Int -> ClientM (Union '[AlreadyTracking, NowTracking])
+trackMod' :: String -> String -> Int -> ClientM (Union '[NowTracking, AlreadyTracking])
 
 -- | Start tracking a mod.  Returns @True@ if the user was not already
 -- tracking the mod.
 trackMod :: String -> String -> Int -> ClientM Bool
 trackMod apikey domainName modId =
   trackMod' apikey domainName modId <&> \case
-    Z _ -> False
-    _ -> True
+    Z _ -> True
+    _ -> False
 
 -- | Internal version of @untrackMod@.
 untrackMod' :: String -> String -> Int -> ClientM (Union '[NoLongerTracking, NotTracking])
