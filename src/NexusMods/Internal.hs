@@ -389,6 +389,10 @@ newtype EndorseVersion = EndorseVersion
 instance ToForm EndorseVersion where
   toForm v = version (v :: EndorseVersion) & fmap (\v -> ("version", [Text.pack v])) & toList & HashMap.fromList & Form
 
+instance FromForm EndorseVersion where
+  -- TODO Some errors can happen here.
+  fromForm = Right . EndorseVersion . fmap (Text.unpack . head) . HashMap.lookup "version" . unForm
+
 -- | Details about a Nexus Mods user.
 data User = User
   { userId :: Int,
