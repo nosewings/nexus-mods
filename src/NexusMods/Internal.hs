@@ -289,8 +289,6 @@ instance FromJSON FileCategory where
 newtype FileCategories = FileCategories (NonEmpty FileCategory)
   deriving (Eq, Ord, Read, Show, Generic)
 
--- XXX This requires FlexibleInstances, and I think it's kind of
--- suspect.  Might be better to use an internal newtype wrapper.
 instance ToHttpApiData FileCategories where
   toQueryParam (FileCategories cs) = Text.intercalate "," . map toText . toList $ cs
    where
