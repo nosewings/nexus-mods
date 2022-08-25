@@ -156,6 +156,13 @@ instance ToHttpApiData Period where
   toQueryParam Week = "1w"
   toQueryParam Month = "1m"
 
+instance FromHttpApiData Period where
+  parseQueryParam "1d" = Right Day
+  parseQueryParam "1w" = Right Week
+  parseQueryParam "1m" = Right Month
+  -- NOTE error message taken from the NexusMods server
+  parseQueryParam _ = Left "Bad Request - Please provide a period that is 1d,1w or 1m"
+
 data ModUpdate = ModUpdate
   { modId :: Int,
     latestFileUpdate :: UTCTime,
