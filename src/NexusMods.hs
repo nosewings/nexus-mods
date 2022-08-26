@@ -101,7 +101,7 @@ getModFiles' :: String -> String -> Int -> Maybe FileCategories -> ClientM ModFi
 -- | Get a mod's list of files.
 getModFiles :: String -> String -> Int -> [FileCategory] -> ClientM ModFiles
 getModFiles apikey gameDomainName md5Hash [] = getModFiles' apikey gameDomainName md5Hash Nothing
-getModFiles apikey gameDomainName md5Hash (c : cs) = getModFiles' apikey gameDomainName md5Hash (Just (FileCategories (c :| cs)))
+getModFiles apikey gameDomainName md5Hash (c : cs) = getModFiles' apikey gameDomainName md5Hash (Just (FileCategories (Just (c :| cs))))
 
 -- | Internal version of @getFile@.
 getFile' :: String -> String -> Int -> JSONExt Int -> ClientM FileDetails

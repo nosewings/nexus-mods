@@ -293,11 +293,21 @@ instance FromJSON FileCategory where
     "miscellaneous" -> return Miscellaneous
     _ -> fail ("expected a file category; got " ++ Text.unpack t)
 
-newtype FileCategories = FileCategories (NonEmpty FileCategory)
+-- | You may wonder why we use `Maybe (NonEmpty FileCategory)` rather
+-- than the isomorphic `[FileCategory]`.  The reason is that the empty
+-- case is not treated "naturally":  a nonempty list represents a
+-- union, but an empty list is treated like an intersection (all
+-- categories at once).
+--
+-- You may additionally wonder why we have a `Maybe` in a type that is
+-- the payload to an optional header.  The reason is that the Nexus
+-- Mods server, in its infinite wisdom, treats some strings as
+-- equivalent to a missing argument.
+newtype FileCategories = FileCategories (Maybe (NonEmpty FileCategory))
   deriving (Eq, Ord, Read, Show, Generic)
 
 instance ToHttpApiData FileCategories where
-  toQueryParam (FileCategories cs) = Text.intercalate "," . map toText . toList $ cs
+  toQueryParam (FileCategories cs) = maybe "," (Text.intercalate "," . map toText . toList) cs
    where
     toText Main = "main"
     toText Update = "update"
