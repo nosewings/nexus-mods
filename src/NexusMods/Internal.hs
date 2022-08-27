@@ -300,9 +300,12 @@ instance FromJSON FileCategory where
 -- categories at once).
 --
 -- You may additionally wonder why we have a `Maybe` in a type that is
--- the payload to an optional header.  The reason is that the Nexus
--- Mods server, in its infinite wisdom, treats some strings as
+-- the payload to an optional query param.  The reason is that the
+-- Nexus Mods server, in its infinite wisdom, treats some strings as
 -- equivalent to a missing argument.
+--
+-- This is purely an internal type, so the messiness is not visible to
+-- clients.
 newtype FileCategories = FileCategories (Maybe (NonEmpty FileCategory))
   deriving (Eq, Ord, Read, Show, Generic)
 
