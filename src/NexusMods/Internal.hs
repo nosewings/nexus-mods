@@ -323,6 +323,7 @@ instance ToHttpApiData FileCategories where
     toText Miscellaneous = "miscellaneous"
 
 instance FromHttpApiData FileCategories where
+  -- NOTE error message taken from the NexusMods server
   parseQueryParam "" = Left "Invalid parameter 'category' value nil: Must be a String"
   parseQueryParam s =
     s
