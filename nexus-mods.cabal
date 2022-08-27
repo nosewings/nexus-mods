@@ -15,6 +15,7 @@ library
                       , NexusMods.Internal.Indexed
                       , NexusMods.Internal.TH
                       , NexusMods.Internal.Surgery
+                      , NexusMods.Internal.Util
     build-depends:      base >=4.15.1.0
                       , aeson >=1.5.5.1
                       , containers >=0.6.4.1

@@ -38,6 +38,7 @@ module NexusMods.Internal (
   api,
 ) where
 
+import Control.Category ((>>>))
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Char
@@ -46,7 +47,7 @@ import Data.Foldable
 import Data.Function
 import Data.Functor
 import Data.HashMap.Strict qualified as HashMap
-import Data.List.NonEmpty (NonEmpty)
+import Data.List.NonEmpty (NonEmpty, nonEmpty)
 import Data.Map (Map)
 import Data.Maybe
 import Data.Text (Text)
@@ -58,6 +59,7 @@ import GHC.Generics
 import NexusMods.Internal.Indexed qualified as Indexed
 import NexusMods.Internal.Surgery
 import NexusMods.Internal.TH
+import NexusMods.Internal.Util
 import NexusMods.MD5String
 import Servant.API
 import Text.ParserCombinators.ReadP
@@ -284,14 +286,16 @@ instance FromJSON Mod where
 data FileCategory = Main | Update | Optional | OldVersion | Miscellaneous
   deriving (Eq, Ord, Enum, Bounded, Read, Show, Generic)
 
+parseFileCategory :: Text -> Either Text FileCategory
+parseFileCategory (Text.toUpper -> "MAIN") = Right Main
+parseFileCategory (Text.toUpper -> "UPDATE") = Right Update
+parseFileCategory (Text.toUpper -> "OPTIONAL") = Right Optional
+parseFileCategory (Text.toUpper -> "OLD_VERSION") = Right OldVersion
+parseFileCategory (Text.toUpper -> "MISCELLANEOUS") = Right Miscellaneous
+parseFileCategory (Text.toUpper -> s) = Left ("Category '" <> s <> "' is not a valid category")
+
 instance FromJSON FileCategory where
-  parseJSON = withText "FileCategory" \t -> case Text.toLower t of
-    "main" -> return Main
-    "update" -> return Update
-    "optional" -> return Optional
-    "old_version" -> return OldVersion
-    "miscellaneous" -> return Miscellaneous
-    _ -> fail ("expected a file category; got " ++ Text.unpack t)
+  parseJSON = withText "FileCategory" (liftEither . mapLeft Text.unpack . parseFileCategory)
 
 -- | You may wonder why we use `Maybe (NonEmpty FileCategory)` rather
 -- than the isomorphic `[FileCategory]`.  The reason is that the empty
@@ -317,6 +321,18 @@ instance ToHttpApiData FileCategories where
     toText Optional = "optional"
     toText OldVersion = "old_version"
     toText Miscellaneous = "miscellaneous"
+
+instance FromHttpApiData FileCategories where
+  parseQueryParam "" = Left "Invalid parameter 'category' value nil: Must be a String"
+  parseQueryParam s =
+    s
+      & Text.splitOn ","
+      & map parseFileCategory
+      & reverse
+      & dropWhile (== Left "")
+      & reverse
+      & catEithers
+      & fmap (nonEmpty >>> FileCategories)
 
 data FileDetails = FileDetails
   { -- NOTE Omitted `id`.  As far as I can tell, this field is always
