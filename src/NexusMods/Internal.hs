@@ -41,8 +41,10 @@ module NexusMods.Internal (
 import Control.Category ((>>>))
 import Data.Aeson.TH
 import Data.Aeson.Types
+import Data.Bifunctor
 import Data.Char
 import Data.Data
+import Data.Fixed
 import Data.Foldable
 import Data.Function
 import Data.Functor
@@ -63,6 +65,7 @@ import NexusMods.Internal.Util
 import NexusMods.MD5String
 import Servant.API
 import Text.ParserCombinators.ReadP
+import Text.Read
 import Web.FormUrlEncoded
 
 impossible :: a
@@ -402,6 +405,9 @@ newtype DownloadExpiry = DownloadExpiry POSIXTime
 
 instance ToHttpApiData DownloadExpiry where
   toQueryParam (DownloadExpiry t) = Text.pack . show . round @_ @Integer $ t
+
+instance FromHttpApiData DownloadExpiry where
+  parseQueryParam = Text.unpack >>> readEither @Integer >>> bimap Text.pack (MkFixed >>> secondsToNominalDiffTime >>> DownloadExpiry)
 
 data DownloadLink = DownloadLink
   { name :: String,
