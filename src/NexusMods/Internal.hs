@@ -85,6 +85,10 @@ instance FromJSON ParentCategoryId where
         True -> fail "expected either False or a number, but encountered True"
     parseInt = fmap Just . parseJSON @Int
 
+instance ToJSON ParentCategoryId where
+  toJSON (ParentCategoryId Nothing) = toJSON False
+  toJSON (ParentCategoryId (Just id)) = toJSON id
+
 data Category' = Category'
   { categoryId :: Int,
     name :: String,
@@ -93,6 +97,8 @@ data Category' = Category'
   deriving (Eq, Ord, Read, Show, Generic)
 
 deriveFromJSON deriveJSONOptions ''Category'
+
+deriveToJSON deriveJSONOptions ''Category'
 
 data Category = Category
   { categoryId :: Int,
@@ -145,6 +151,20 @@ instance FromJSON Game where
                 }
           )
           cs
+
+instance ToJSON Game where
+  toJSON = deanimate (modifyRField @"categories" unstitchCategories) >>> genericToJSON deriveJSONOptions
+   where
+    unstitchCategories :: [Category] -> [Category']
+    unstitchCategories =
+      map
+        ( \c ->
+            Category'
+              { categoryId = categoryId (c :: Category),
+                name = name (c :: Category),
+                parentCategory = ParentCategoryId (fmap (\c' -> categoryId (c' :: Category)) (parentCategory (c :: Category)))
+              }
+        )
 
 -- | Stupid wrapper for parsing an URL piece that needs to have
 -- @.json@ at the end.

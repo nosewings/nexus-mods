@@ -1,17 +1,26 @@
 module NexusMods.Internal.Surgery (
+  toOR,
+  fromOR',
   toOR',
   fromOR,
   removeRField,
   insertRField',
   modifyRField,
   animate,
+  deanimate,
 ) where
 
 import Control.Monad.Indexed.State
 import GHC.Generics
-import Generic.Data.Surgery (Data, FromORRep, InsRField, ModRField, OR, RmvRField, ToOR)
+import Generic.Data.Surgery (Data, ToORRep, FromORRep, FromOR, InsRField, ModRField, OR, RmvRField, ToOR)
 import Generic.Data.Surgery qualified as GDS
 import NexusMods.Internal.Indexed qualified as Indexed
+
+toOR :: forall a l x. (Generic a, ToORRep a l) => IxState a (OR l x) ()
+toOR = imodify GDS.toOR
+
+fromOR' :: forall f l x. FromOR f l => IxState (OR l x) (Data f x) ()
+fromOR' = imodify GDS.fromOR'
 
 toOR' :: forall f l x. ToOR f l => IxState (Data f x) (OR l x) ()
 toOR' = imodify GDS.toOR'
@@ -36,3 +45,10 @@ animate k =
     toOR'
     k
     fromOR
+
+deanimate :: (Generic a, ToORRep a l, FromOR f l') => IxState (OR l x) (OR l' x) () -> a -> Data f x
+deanimate k =
+  snd . runIxState Indexed.do
+    toOR
+    k
+    fromOR'
