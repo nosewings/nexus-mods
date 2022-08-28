@@ -38,7 +38,9 @@ module NexusMods.Internal (
   api,
 ) where
 
+import Control.Applicative
 import Control.Category ((>>>))
+import Control.Monad
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Bifunctor
@@ -71,25 +73,26 @@ import Web.FormUrlEncoded
 impossible :: a
 impossible = error "an impossible situation has occurred"
 
+newtype ParentCategoryId = ParentCategoryId (Maybe Int)
+  deriving (Eq, Ord, Read, Show, Generic)
+
+instance FromJSON ParentCategoryId where
+  parseJSON v = ParentCategoryId <$> (parseBool v <|> parseInt v)
+   where
+    parseBool =
+      parseJSON >=> \case
+        False -> return Nothing
+        True -> fail "expected either False or a number, but encountered True"
+    parseInt = fmap Just . parseJSON @Int
+
 data Category' = Category'
   { categoryId :: Int,
     name :: String,
-    parentCategory :: Maybe Int
+    parentCategory :: ParentCategoryId
   }
   deriving (Eq, Ord, Read, Show, Generic)
 
-instance FromJSON Category' where
-  -- The @Category'@ type is internal; it exists only for the purposes
-  -- of converting @[Category']@ into @[Category]@.  Therefore, we use
-  -- the name @"Category"@ here.
-  parseJSON = withObject "Category" \v -> do
-    categoryId <- v .: "category_id"
-    name <- v .: "name"
-    parentCategory <-
-      v .: "parent_category" >>= \case
-        Bool False -> return Nothing
-        x -> Just <$> parseJSON x <?> Key "name"
-    return (Category' categoryId name parentCategory)
+deriveFromJSON deriveJSONOptions ''Category'
 
 data Category = Category
   { categoryId :: Int,
@@ -136,8 +139,9 @@ instance FromJSON Game where
                   -- Instead of using `fromJust`, think about how to deal
                   -- with that case.
                   parentCategory =
-                    parentCategory (c :: Category') <&> \id ->
-                      fromJust (find (\c' -> categoryId (c' :: Category) == id) result)
+                    let ParentCategoryId p = parentCategory (c :: Category')
+                     in p <&> \id ->
+                          fromJust (find (\c' -> categoryId (c' :: Category) == id) result)
                 }
           )
           cs
