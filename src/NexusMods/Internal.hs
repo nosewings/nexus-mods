@@ -98,28 +98,6 @@ data Category = Category
   }
   deriving (Eq, Ord, Read, Show, Generic)
 
--- | Stitch a list of @Category'@ together to form a list of
--- @Category@.  Each @parentCategory@ becomes a reference to some
--- other category in the returned list.
-stitchCategories :: [Category'] -> [Category]
-stitchCategories cs = result
- where
-  result =
-    map
-      ( \c ->
-          Category
-            { categoryId = categoryId (c :: Category'),
-              name = name (c :: Category'),
-              -- TODO What if the parent category isn't present?
-              -- Instead of using `fromJust`, think about how to deal
-              -- with that case.
-              parentCategory =
-                parentCategory (c :: Category') <&> \id ->
-                  fromJust (find (\c' -> categoryId (c' :: Category) == id) result)
-            }
-      )
-      cs
-
 data Game = Game
   { id :: Int,
     name :: String,
@@ -141,6 +119,28 @@ data Game = Game
 
 instance FromJSON Game where
   parseJSON v = genericParseJSON deriveJSONOptions v <&> animate (modifyRField @"categories" stitchCategories)
+   where
+    -- Stitch a list of @Category'@ together to form a list of
+    -- @Category@.  Each @parentCategory@ becomes a reference to some
+    -- other category in the returned list.
+    stitchCategories :: [Category'] -> [Category]
+    stitchCategories cs = result
+     where
+      result =
+        map
+          ( \c ->
+              Category
+                { categoryId = categoryId (c :: Category'),
+                  name = name (c :: Category'),
+                  -- TODO What if the parent category isn't present?
+                  -- Instead of using `fromJust`, think about how to deal
+                  -- with that case.
+                  parentCategory =
+                    parentCategory (c :: Category') <&> \id ->
+                      fromJust (find (\c' -> categoryId (c' :: Category) == id) result)
+                }
+          )
+          cs
 
 -- | Stupid wrapper for parsing an URL piece that needs to have
 -- @.json@ at the end.
